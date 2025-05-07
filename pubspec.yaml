@@ -1,0 +1,42 @@
+name: food_app
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  curved_navigation_bar: ^1.0.6
+  fluttertoast: ^8.0.9
+  http: ^1.2.2
+  image_picker: ^1.1.2
+  file_picker: ^9.2.2
+  shared_preferences: ^2.3.3
+  cupertino_icons: ^1.0.8
+  random_string: ^2.3.1
+  provider: ^6.1.4
+  # worldbend_sdk: ^1.0.0  # Đã comment package không tồn tại
+  mysql1: ^0.20.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - images/
+
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: fonts/Poppins-SemiBold.ttf
+
+

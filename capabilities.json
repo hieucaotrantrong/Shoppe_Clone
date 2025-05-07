@@ -1,0 +1,8 @@
+{
+  "platformName": "Android",
+  "platformVersion": "13.0",
+  "deviceName": "emulator-5554",
+  "automationName": "UiAutomator2",
+  "appPackage": "com.example.food_app",
+  "appActivity": "com.example.food_app.MainActivity"
+}
