@@ -52,10 +52,10 @@ class HeaderSection extends StatelessWidget {
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87),
+                  color: const Color.fromARGB(221, 236, 220, 182)),
             ),
             Text(
-              "Chào mừng bạn đến với Shoppe?",
+              "Chào mừng bạn đến với Shoppe",
               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
           ],

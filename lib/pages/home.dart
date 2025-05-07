@@ -45,6 +45,20 @@ class _HomeState extends State<Home> {
     });
   }
 
+  // Thêm banner quảng cáo
+  Widget _buildPromoBanner() {
+    return Container(
+      height: 150,
+      color: Colors.blue,
+      child: Center(
+        child: Text(
+          'Banner Quảng Cáo',
+          style: TextStyle(color: Colors.white, fontSize: 24),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context);
@@ -91,3 +105,4 @@ class _HomeState extends State<Home> {
     );
   }
 }
+

@@ -16,6 +16,12 @@ app.use(cors({
 }));
 app.use(bodyParser.json());
 
+// Thêm log chi tiết hơn
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 // Kết nối MySQL
 const pool = mysql.createPool({
   host: 'localhost',
@@ -42,16 +48,21 @@ async function testDatabaseConnection() {
   }
 }
 
+// Khai báo biến server ở phạm vi toàn cục
+let server;
+
 // Khởi động server sau khi kiểm tra kết nối
 async function startServer() {
   const dbConnected = await testDatabaseConnection();
 
   if (dbConnected) {
-    const server = app.listen(port, () => {
+    server = app.listen(port, '0.0.0.0', () => {
       console.log(`Server running on port ${port}`);
+      console.log(`Server is accessible at:`);
+      console.log(`- Local: http://localhost:${port}`);
+      console.log(`- For emulators: http://10.0.2.2:${port}`);
+      console.log(`- Network: http://<your-local-ip>:${port}`);
     });
-
-    // Graceful shutdown handlers...
   } else {
     console.log('Server not started due to database connection issues');
   }
@@ -62,20 +73,26 @@ startServer();
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing HTTP server');
-  server.close(async () => {
-    console.log('HTTP server closed');
-    await pool.end();
-    console.log('Database connections closed');
-  });
+  if (server) {
+    server.close(async () => {
+      console.log('HTTP server closed');
+      await pool.end();
+      console.log('Database connections closed');
+    });
+  }
 });
 
 process.on('SIGINT', () => {
   console.log('SIGINT signal received: closing HTTP server');
-  server.close(async () => {
-    console.log('HTTP server closed');
-    await pool.end();
-    console.log('Database connections closed');
-  });
+  if (server) {
+    server.close(async () => {
+      console.log('HTTP server closed');
+      await pool.end();
+      console.log('Database connections closed');
+    });
+  } else {
+    process.exit(0); // Thoát ngay nếu server chưa được khởi tạo
+  }
 });
 
 // Thêm xử lý lỗi tổng quát
@@ -87,17 +104,6 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   // Không tắt server ngay lập tức khi có lỗi
-});
-
-// Thêm xử lý lỗi khi khởi động server
-const server = app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-}).on('error', (error) => {
-  if (error.code === 'EADDRINUSE') {
-    console.error(`Port ${port} is already in use. Try using a different port.`);
-  } else {
-    console.error('Error starting server:', error);
-  }
 });
 
 // Thêm API endpoint để lấy thông tin người dùng
@@ -129,94 +135,69 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
-// API đăng nhập
-app.post('/api/login', async (req, res) => {
+// Đăng nhập
+app.post('/api/users/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Email and password are required'
-      });
+      return res.status(400).json({ status: 'error', message: 'Email and password are required' });
     }
 
-    // Lấy thông tin người dùng từ email
-    const [users] = await pool.query(
-      'SELECT * FROM users WHERE email = ?',
-      [email]
-    );
+    // Tìm người dùng theo email
+    const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
 
     if (users.length === 0) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Invalid email or password'
-      });
+      return res.status(401).json({ status: 'error', message: 'Invalid credentials' });
     }
 
     const user = users[0];
 
-    // So sánh mật khẩu đã nhập với mật khẩu đã mã hóa
+    // So sánh mật khẩu
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Invalid email or password'
-      });
+      return res.status(401).json({ status: 'error', message: 'Invalid credentials' });
     }
 
-    // Không trả về mật khẩu
-    delete user.password;
+    // Trả về thông tin người dùng (không bao gồm mật khẩu)
+    const userData = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role || 'user', // Mặc định là 'user' nếu không có role
+    };
 
-    res.json({
-      status: 'success',
-      message: 'Login successful',
-      data: user
-    });
+    res.json({ status: 'success', message: 'Login successful', data: userData });
   } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: error.message
-    });
+    console.error('Error during login:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
 
-// API đăng ký
-app.post('/api/register', async (req, res) => {
+// Đăng ký
+app.post('/api/users/register', async (req, res) => {
   try {
-    const { name, email, password, role = 'user' } = req.body;
+    const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Name, email and password are required'
-      });
+      return res.status(400).json({ status: 'error', message: 'All fields are required' });
     }
 
     // Kiểm tra email đã tồn tại chưa
-    const [existingUsers] = await pool.query(
-      'SELECT * FROM users WHERE email = ?',
-      [email]
-    );
+    const [existingUsers] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
 
     if (existingUsers.length > 0) {
-      return res.status(409).json({
-        status: 'error',
-        message: 'Email already exists'
-      });
+      return res.status(409).json({ status: 'error', message: 'Email already exists' });
     }
 
     // Mã hóa mật khẩu
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Chỉ cho phép role 'user' hoặc 'admin'
-    const validRole = role === 'admin' ? 'admin' : 'user';
-
-    // Thêm người dùng mới với mật khẩu đã mã hóa
+    // Thêm người dùng mới vào cơ sở dữ liệu (mặc định role là 'user')
     const [result] = await pool.query(
       'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hashedPassword, validRole]
+      [name, email, hashedPassword, 'user']
     );
 
     res.status(201).json({
@@ -226,14 +207,12 @@ app.post('/api/register', async (req, res) => {
         id: result.insertId,
         name,
         email,
-        role: validRole
+        role: 'user'
       }
     });
   } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: error.message
-    });
+    console.error('Error during registration:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
 
@@ -357,7 +336,254 @@ app.put('/api/users/:id/password', async (req, res) => {
   }
 });
 
+// API endpoints cho đơn hàng
 
+// Lấy tất cả đơn hàng (cho admin)
+app.get('/api/orders', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT o.*, u.name as user_name
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      ORDER BY o.created_at DESC
+    `);
+    
+    // Lấy chi tiết đơn hàng cho mỗi đơn hàng
+    for (let i = 0; i < rows.length; i++) {
+      const [orderItems] = await pool.query(`
+        SELECT oi.*, p.name, p.image_path
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        WHERE oi.order_id = ?
+      `, [rows[i].id]);
+      
+      rows[i].items = orderItems;
+    }
+    
+    res.json({ status: 'success', data: rows });
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
 
+// Cập nhật trạng thái đơn hàng
+app.put('/api/orders/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const orderId = req.params.id;
+    
+    if (!status) {
+      return res.status(400).json({ status: 'error', message: 'Status is required' });
+    }
+    
+    // Kiểm tra trạng thái hợp lệ
+    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ status: 'error', message: 'Invalid status' });
+    }
+    
+    const [result] = await pool.query(
+      'UPDATE orders SET status = ? WHERE id = ?',
+      [status, orderId]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: 'error', message: 'Order not found' });
+    }
+    
+    res.json({ 
+      status: 'success', 
+      message: 'Order status updated successfully',
+      data: { id: orderId, status }
+    });
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
+
+// Tạo đơn hàng mới
+app.post('/api/orders', async (req, res) => {
+  try {
+    const { user_id, total_amount, items } = req.body;
+    
+    if (!user_id || !total_amount || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'Invalid order data' });
+    }
+    
+    // Bắt đầu transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      // Tạo đơn hàng
+      const [orderResult] = await connection.query(
+        'INSERT INTO orders (user_id, total_amount, status) VALUES (?, ?, ?)',
+        [user_id, total_amount, 'pending']
+      );
+      
+      const orderId = orderResult.insertId;
+      
+      // Thêm các mục đơn hàng
+      for (const item of items) {
+        await connection.query(
+          'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
+          [orderId, item.id, item.quantity, item.price]
+        );
+      }
+      
+      // Commit transaction
+      await connection.commit();
+      connection.release();
+      
+      res.status(201).json({ 
+        status: 'success', 
+        message: 'Order created successfully',
+        data: { order_id: orderId }
+      });
+    } catch (error) {
+      // Rollback nếu có lỗi
+      await connection.rollback();
+      connection.release();
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
+
+// API endpoints cho sản phẩm (products)
+
+// Lấy tất cả sản phẩm
+app.get('/api/products', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT * FROM products
+      ORDER BY name ASC
+    `);
+    
+    res.json({ status: 'success', data: rows });
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
+
+// Lấy sản phẩm theo ID
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    
+    const [rows] = await pool.query(
+      'SELECT * FROM products WHERE id = ?',
+      [productId]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ status: 'error', message: 'Product not found' });
+    }
+    
+    res.json({ status: 'success', data: rows[0] });
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
+
+// Tạo sản phẩm mới
+app.post('/api/products', async (req, res) => {
+  try {
+    const { name, price, description, image_path, category } = req.body;
+    
+    if (!name || !price) {
+      return res.status(400).json({ status: 'error', message: 'Name and price are required' });
+    }
+    
+    const [result] = await pool.query(
+      'INSERT INTO products (name, price, description, image_path, category) VALUES (?, ?, ?, ?, ?)',
+      [name, price, description || '', image_path || '', category || 'Other']
+    );
+    
+    res.status(201).json({ 
+      status: 'success', 
+      message: 'Product created successfully',
+      data: { 
+        id: result.insertId,
+        name,
+        price,
+        description,
+        image_path,
+        category
+      }
+    });
+  } catch (error) {
+    console.error('Error creating product:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
+
+// Cập nhật sản phẩm
+app.put('/api/products/:id', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const { name, price, description, image_path, category } = req.body;
+    
+    if (!name || !price) {
+      return res.status(400).json({ status: 'error', message: 'Name and price are required' });
+    }
+    
+    const [result] = await pool.query(
+      'UPDATE products SET name = ?, price = ?, description = ?, image_path = ?, category = ? WHERE id = ?',
+      [name, price, description || '', image_path || '', category || 'Other', productId]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: 'error', message: 'Product not found' });
+    }
+    
+    res.json({ 
+      status: 'success', 
+      message: 'Product updated successfully',
+      data: { 
+        id: productId,
+        name,
+        price,
+        description,
+        image_path,
+        category
+      }
+    });
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
+
+// Xóa sản phẩm
+app.delete('/api/products/:id', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    
+    const [result] = await pool.query(
+      'DELETE FROM products WHERE id = ?',
+      [productId]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: 'error', message: 'Product not found' });
+    }
+    
+    res.json({ 
+      status: 'success', 
+      message: 'Product deleted successfully',
+      data: { id: productId }
+    });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
 
 

@@ -5,6 +5,7 @@ import 'package:food_app/pages/signup.dart';
 import 'package:food_app/widget/widget_support.dart';
 import 'package:food_app/services/api_service.dart';
 import 'package:food_app/services/shared_pref.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class LogIn extends StatefulWidget {
   const LogIn({super.key});
@@ -102,7 +103,7 @@ class _LogInState extends State<LogIn> {
                             ? CircularProgressIndicator()
                             : GestureDetector(
                                 onTap: () {
-                                  login();
+                                  _login();
                                 },
                                 child: Container(
                                   padding: EdgeInsets.symmetric(vertical: 12),
@@ -168,14 +169,28 @@ class _LogInState extends State<LogIn> {
     );
   }
 
-  Future<void> login() async {
+  Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
       });
 
+      // Kiểm tra kết nối mạng
+      var connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không có kết nối mạng. Vui lòng kiểm tra lại.')),
+        );
+        return;
+      }
+
       try {
-        final user = await ApiService.login(
+        print('Attempting to login with: ${emailController.text}'); // Debug log
+        
+        final result = await ApiService.login(
           emailController.text.trim(),
           passwordController.text.trim(),
         );
@@ -184,25 +199,29 @@ class _LogInState extends State<LogIn> {
           _isLoading = false;
         });
 
-        if (user != null && user['status'] == 'success') {
+        if (result != null && result['status'] == 'success') {
           // Lưu thông tin người dùng vào SharedPreferences
-          SharedPreferenceHelper().saveUserEmail(emailController.text);
-          SharedPreferenceHelper().saveUserId(user['data']['id'].toString());
-          SharedPreferenceHelper().saveUserName(user['data']['name']);
+          await SharedPreferenceHelper().saveUserData(
+            result['data']['id'].toString(),
+            result['data']['name'],
+            result['data']['email'],
+            result['data']['role'],
+          );
           
-          // Lưu role người dùng
-          final userRole = user['data']['role'] ?? 'user';
-          SharedPreferenceHelper().saveUserRole(userRole);
-
-          // Điều hướng dựa trên role
-          if (userRole == 'admin') {
-            // Nếu là admin, chuyển đến trang admin
+          // Lưu URL ảnh đại diện nếu có
+          if (result['data']['profile_image'] != null) {
+            await SharedPreferenceHelper().saveUserProfile(result['data']['profile_image']);
+          }
+          
+          // Kiểm tra vai trò người dùng
+          if (result['data']['role'] == 'admin') {
+            // Chuyển đến trang admin dashboard
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => AdminDashboard()),
             );
           } else {
-            // Nếu là user thông thường, chuyển đến trang chính
+            // Chuyển đến trang người dùng thông thường
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => BottomNav()),
@@ -210,7 +229,7 @@ class _LogInState extends State<LogIn> {
           }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Invalid email or password')),
+            SnackBar(content: Text('Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.')),
           );
         }
       } catch (e) {
@@ -218,12 +237,15 @@ class _LogInState extends State<LogIn> {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Đã xảy ra lỗi: $e')),
         );
       }
     }
   }
 }
+
+
+
 
 
 

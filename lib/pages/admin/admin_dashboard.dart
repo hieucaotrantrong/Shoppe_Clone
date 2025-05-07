@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:food_app/pages/admin/manage_products.dart';
 import 'package:food_app/pages/login.dart';
 import 'package:food_app/services/shared_pref.dart';
+import 'package:food_app/pages/admin/manage_orders.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({Key? key}) : super(key: key);
@@ -30,7 +32,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Admin Dashboard"),
+        title: Text("Trang quản lí"),
         backgroundColor: Color(0xFFff5722),
         foregroundColor: Colors.white,
         actions: [
@@ -108,7 +110,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           title: Text('Manage Products'),
           onTap: () {
             Navigator.pop(context);
-            // Điều hướng đến trang quản lý sản phẩm
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ManageProducts()),
+            );
           },
         ),
         ListTile(
@@ -124,7 +129,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           title: Text('Manage Orders'),
           onTap: () {
             Navigator.pop(context);
-            // Điều hướng đến trang quản lý đơn hàng
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ManageOrders()),
+            );
           },
         ),
         Divider(),
@@ -150,7 +158,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           Icons.fastfood,
           Colors.blue,
           () {
-            // Điều hướng đến trang quản lý sản phẩm
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ManageProducts()),
+            );
           },
         ),
         _buildDashboardCard(
@@ -166,7 +177,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           Icons.shopping_cart,
           Colors.orange,
           () {
-            // Điều hướng đến trang quản lý đơn hàng
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ManageOrders()),
+            );
           },
         ),
         _buildDashboardCard(
@@ -188,38 +202,41 @@ class _AdminDashboardState extends State<AdminDashboard> {
       child: Card(
         elevation: 4,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(12),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                color,
                 color.withOpacity(0.7),
+                color,
               ],
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 50,
-                color: Colors.white,
-              ),
-              SizedBox(height: 10),
-              Text(
-                title,
-                style: TextStyle(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 50,
                   color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
                 ),
-              ),
-            ],
+                SizedBox(height: 10),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -227,18 +244,34 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   void _logout(BuildContext context) async {
-    // Xóa thông tin người dùng
-    await SharedPreferenceHelper().saveUserId("");
-    await SharedPreferenceHelper().saveUserName("");
-    await SharedPreferenceHelper().saveUserEmail("");
-    await SharedPreferenceHelper().saveUserProfile("");
-    await SharedPreferenceHelper().saveUserRole("");
-
-    // Chuyển về trang đăng nhập
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LogIn()),
-      (route) => false,
+    // Hiển thị dialog xác nhận
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Xác nhận đăng xuất"),
+        content: Text("Bạn có chắc chắn muốn đăng xuất không?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text("Hủy"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text("Đăng xuất"),
+          ),
+        ],
+      ),
     );
+
+    if (confirm == true) {
+      // Xóa thông tin đăng nhập
+      await SharedPreferenceHelper().clearUserData();
+
+      // Chuyển về trang đăng nhập
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => LogIn()),
+        (route) => false,
+      );
+    }
   }
 }

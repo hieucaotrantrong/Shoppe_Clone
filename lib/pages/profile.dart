@@ -123,10 +123,7 @@ class _ProfileState extends State<Profile> {
   // Hàm xử lý đăng xuất
   logout() async {
     // Xóa tất cả dữ liệu của người dùng từ SharedPreferences
-    await SharedPreferenceHelper().saveUserId(""); // Hoặc gọi delete nếu cần
-    await SharedPreferenceHelper().saveUserName("");
-    await SharedPreferenceHelper().saveUserEmail("");
-    await SharedPreferenceHelper().saveUserProfile("");
+    await SharedPreferenceHelper().clearUserData();
 
     // Hiển thị thông báo đăng xuất thành công
     Fluttertoast.showToast(
@@ -145,4 +142,6 @@ class _ProfileState extends State<Profile> {
             builder: (context) => LogIn()));
   }
 }
+
+
 

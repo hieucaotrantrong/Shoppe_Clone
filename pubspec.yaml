@@ -19,8 +19,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   random_string: ^2.3.1
   provider: ^6.1.4
-  # worldbend_sdk: ^1.0.0  # Đã comment package không tồn tại
   mysql1: ^0.20.0
+  intl: ^0.19.0
+  connectivity_plus: ^5.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -38,5 +39,6 @@ flutter:
     - family: Poppins
       fonts:
         - asset: fonts/Poppins-SemiBold.ttf
+
 
 
