@@ -40,7 +40,11 @@ class _ProductsGridState extends State<ProductsGrid> {
   // Phương thức để lấy dữ liệu từ ApiService
   Future<List<Map<String, dynamic>>> _getProducts() async {
     try {
-      final products = await ApiService.getProducts();
+      // Sử dụng phương thức getFilteredProducts thay vì getProducts
+      final products = await ApiService.getFilteredProducts(
+        category: widget.category,
+        searchQuery: widget.searchQuery,
+      );
       return products;
     } catch (e) {
       print('Error loading products: $e');
@@ -284,3 +288,4 @@ class ShopeeStyleProductCard extends StatelessWidget {
     );
   }
 }
+
