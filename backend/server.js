@@ -341,29 +341,59 @@ app.put('/api/users/:id/password', async (req, res) => {
 // Lấy tất cả đơn hàng (cho admin)
 app.get('/api/orders', async (req, res) => {
   try {
-    const [rows] = await pool.query(`
+    console.log('Fetching all orders...');
+    
+    // Kiểm tra cấu trúc bảng orders
+    const [orderColumns] = await pool.query('SHOW COLUMNS FROM orders');
+    console.log('Orders table columns:', orderColumns.map(col => col.Field));
+    
+    // Xác định tên cột thời gian
+    let timeColumn = 'order_date';
+    if (orderColumns.some(col => col.Field === 'created_at')) {
+      timeColumn = 'created_at';
+    }
+    
+    console.log(`Using time column: ${timeColumn}`);
+    
+    // Truy vấn với tên cột thời gian đúng
+    const query = `
       SELECT o.*, u.name as user_name
       FROM orders o
       JOIN users u ON o.user_id = u.id
-      ORDER BY o.created_at DESC
-    `);
-
+      ORDER BY o.${timeColumn} DESC
+    `;
+    
+    console.log('Executing query:', query);
+    const [rows] = await pool.query(query);
+    console.log(`Found ${rows.length} orders`);
+    
     // Lấy chi tiết đơn hàng cho mỗi đơn hàng
     for (let i = 0; i < rows.length; i++) {
+      const order = rows[i];
+      console.log(`Fetching items for order #${order.id}`);
+      
       const [orderItems] = await pool.query(`
-        SELECT oi.*, p.name, p.image_path
+        SELECT oi.*
         FROM order_items oi
-        JOIN products p ON oi.product_id = p.id
         WHERE oi.order_id = ?
-      `, [rows[i].id]);
-
+      `, [order.id]);
+      
+      console.log(`Found ${orderItems.length} items for order #${order.id}`);
+      
+      // Đảm bảo mỗi item có tên
+      for (let j = 0; j < orderItems.length; j++) {
+        if (!orderItems[j].name) {
+          orderItems[j].name = 'Sản phẩm không xác định';
+        }
+      }
+      
       rows[i].items = orderItems;
     }
-
+    
     res.json({ status: 'success', data: rows });
   } catch (error) {
     console.error('Error fetching orders:', error);
-    res.status(500).json({ status: 'error', message: 'Internal server error' });
+    res.status(500).json({ status: 'error', message: error.message });
   }
 });
 
@@ -372,6 +402,8 @@ app.put('/api/orders/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
     const orderId = req.params.id;
+    
+    console.log(`Updating order #${orderId} status to: ${status}`);
 
     if (!status) {
       return res.status(400).json({ status: 'error', message: 'Status is required' });
@@ -387,6 +419,8 @@ app.put('/api/orders/:id/status', async (req, res) => {
       'UPDATE orders SET status = ? WHERE id = ?',
       [status, orderId]
     );
+    
+    console.log('Update result:', result);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ status: 'error', message: 'Order not found' });
@@ -407,38 +441,46 @@ app.put('/api/orders/:id/status', async (req, res) => {
 app.post('/api/orders', async (req, res) => {
   try {
     const { user_id, total_amount, items } = req.body;
-
+    
     if (!user_id || !total_amount || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ status: 'error', message: 'Invalid order data' });
     }
-
+    
+    console.log('Received order data:', { user_id, total_amount, items });
+    
     // Bắt đầu transaction
     const connection = await pool.getConnection();
     await connection.beginTransaction();
-
+    
     try {
       // Tạo đơn hàng
       const [orderResult] = await connection.query(
         'INSERT INTO orders (user_id, total_amount, status) VALUES (?, ?, ?)',
         [user_id, total_amount, 'pending']
       );
-
+      
       const orderId = orderResult.insertId;
-
+      
       // Thêm các mục đơn hàng
       for (const item of items) {
+        console.log('Adding order item:', item);
+        
+        // Đảm bảo rằng tên sản phẩm được truyền đúng cách
+        const productName = item.name || 'Unknown';
+        console.log('Product name to be saved:', productName);
+        
         await connection.query(
-          'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
-          [orderId, item.product_id, item.quantity, item.price]
+          'INSERT INTO order_items (order_id, product_id, name, quantity, price) VALUES (?, ?, ?, ?, ?)',
+          [orderId, item.product_id, productName, item.quantity, item.price]
         );
       }
-
+      
       // Commit transaction
       await connection.commit();
       connection.release();
-
-      res.status(201).json({
-        status: 'success',
+      
+      res.status(201).json({ 
+        status: 'success', 
         message: 'Order created successfully',
         data: { order_id: orderId }
       });
@@ -585,6 +627,14 @@ app.delete('/api/products/:id', async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
+
+
+
+
+
+
+
+
 
 
 

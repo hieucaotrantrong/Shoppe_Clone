@@ -132,9 +132,10 @@ class ApiService {
       print('totalAmount: $totalAmount');
       print('items: $items');
       
-      // Chuyển đổi id từ string sang int nếu cần
+      // Chuyển đổi id từ string sang int nếu cần và thêm tên sản phẩm
       final formattedItems = items.map((item) => {
         'product_id': int.tryParse(item['id'].toString()) ?? 0,
+        'name': item['name'] ?? 'Unknown',
         'quantity': item['quantity'],
         'price': item['price']
       }).toList();
@@ -237,15 +238,45 @@ class ApiService {
   // Lấy tất cả đơn hàng (cho admin)
   static Future<List<Map<String, dynamic>>> getAllOrders() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/orders'));
+      print('Fetching all orders from API...');
+      final response = await http.get(Uri.parse('$baseUrl/orders'))
+          .timeout(requestTimeout);
+      
+      print('Orders API response status: ${response.statusCode}');
+      print('Orders API response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         if (data['status'] == 'success' && data['data'] != null) {
-          return List<Map<String, dynamic>>.from(data['data']);
+          // Chuyển đổi dữ liệu thành List<Map<String, dynamic>>
+          final List<dynamic> rawOrders = data['data'];
+          final orders = rawOrders.map((order) {
+            // Đảm bảo mỗi đơn hàng là Map<String, dynamic>
+            final Map<String, dynamic> orderMap = Map<String, dynamic>.from(order);
+            
+            // Đảm bảo items là List<Map<String, dynamic>>
+            if (orderMap['items'] != null) {
+              final List<dynamic> rawItems = orderMap['items'];
+              orderMap['items'] = rawItems.map((item) => 
+                Map<String, dynamic>.from(item)
+              ).toList();
+            } else {
+              orderMap['items'] = [];
+            }
+            
+            return orderMap;
+          }).toList();
+          
+          print('Successfully parsed ${orders.length} orders');
+          return orders;
+        } else {
+          print('API returned success but no data or wrong format');
+          return [];
         }
+      } else {
+        print('API returned error status: ${response.statusCode}');
+        return [];
       }
-      return [];
     } catch (e) {
       print('Error fetching orders: $e');
       return [];
@@ -297,6 +328,14 @@ class ApiService {
     }
   }
 }
+
+
+
+
+
+
+
+
 
 
 

@@ -34,8 +34,30 @@ class _ManageOrdersState extends State<ManageOrders> {
 
   Future<void> _refreshOrders() async {
     setState(() {
+      _isLoading = true;
       _ordersFuture = ApiService.getAllOrders();
     });
+    
+    try {
+      final orders = await _ordersFuture;
+      print('Fetched ${orders.length} orders');
+      for (var order in orders) {
+        print('Order #${order['id']}: ${order['total_amount']} - ${order['status']}');
+        if (order['items'] != null) {
+          print('  Items: ${order['items'].length}');
+        } else {
+          print('  No items found');
+        }
+      }
+    } catch (e) {
+      print('Error refreshing orders: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _updateOrderStatus(String orderId, String newStatus) async {
@@ -133,14 +155,34 @@ class _ManageOrdersState extends State<ManageOrders> {
                 }
 
                 final orders = snapshot.data!;
-
+                print('Building UI for ${orders.length} orders');
+                
                 return ListView.builder(
                   itemCount: orders.length,
                   itemBuilder: (context, index) {
                     final order = orders[index];
+                    print('Rendering order: $order');
+                    
+                    // Xử lý ngày đặt hàng an toàn
+                    DateTime orderDate;
+                    try {
+                      final dateString = order['created_at'] ?? order['order_date'];
+                      orderDate = dateString != null 
+                          ? DateTime.parse(dateString.toString()) 
+                          : DateTime.now();
+                    } catch (e) {
+                      print('Error parsing date: $e');
+                      orderDate = DateTime.now();
+                    }
+                    
                     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-                    final orderDate = DateTime.parse(order['created_at']);
-
+                    
+                    // Xử lý trạng thái đơn hàng an toàn
+                    final status = order['status'] ?? 'pending';
+                    
+                    // Xử lý tên người dùng an toàn
+                    final userName = order['user_name'] ?? 'Không xác định';
+                    
                     return Card(
                       margin: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
                       elevation: 2,
@@ -153,7 +195,7 @@ class _ManageOrdersState extends State<ManageOrders> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Ngày đặt: ${dateFormat.format(orderDate)}'),
-                            Text('Khách hàng: ${order['user_name']}'),
+                            Text('Khách hàng: $userName'),
                             Row(
                               children: [
                                 Text('Trạng thái: '),
@@ -161,11 +203,11 @@ class _ManageOrdersState extends State<ManageOrders> {
                                   padding: EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: _getStatusColor(order['status']),
+                                    color: _getStatusColor(status),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
-                                    _getStatusText(order['status']),
+                                    _getStatusText(status),
                                     style: TextStyle(
                                         color: Colors.white, fontSize: 12),
                                   ),
@@ -193,53 +235,32 @@ class _ManageOrdersState extends State<ManageOrders> {
                                   style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 SizedBox(height: 10),
-                                ...List.generate(
-                                  (order['items'] as List).length,
-                                  (i) {
-                                    final item = (order['items'] as List)[i];
-                                    return Padding(
-                                      padding: EdgeInsets.only(bottom: 5),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                              '${item['quantity']}x ${item['name']}'),
-                                          Text(
-                                              '₫${item['price'] * item['quantity']}'),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Divider(),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'Tổng cộng:',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    Text(
-                                      '₫${order['total_amount']}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFFff5722),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 15),
-                                Text(
-                                  'Cập nhật trạng thái:',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
+                                if (order['items'] != null && order['items'] is List && (order['items'] as List).isNotEmpty)
+                                  ...List.generate(
+                                    (order['items'] as List).length,
+                                    (i) {
+                                      final item = (order['items'] as List)[i];
+                                      final itemName = item['name'] ?? 'Sản phẩm không xác định';
+                                      final itemQuantity = item['quantity'] ?? 1;
+                                      final itemPrice = item['price'] ?? 0;
+                                      
+                                      return Padding(
+                                        padding: EdgeInsets.only(bottom: 5),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text('$itemQuantity x $itemName'),
+                                            Text('₫${itemPrice * itemQuantity}'),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  )
+                                else
+                                  Text('Không có thông tin chi tiết sản phẩm'),
                                 SizedBox(height: 10),
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                   children: [
                                     _buildStatusButton(
                                         order['id'].toString(),
@@ -267,18 +288,24 @@ class _ManageOrdersState extends State<ManageOrders> {
     );
   }
 
-  Widget _buildStatusButton(
-      String orderId, String status, String label, Color color) {
+  Widget _buildStatusButton(String orderId, String status, String label, Color color) {
     return ElevatedButton(
       onPressed: () => _updateOrderStatus(orderId, status),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         foregroundColor: Colors.white,
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        minimumSize: Size(0, 30),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size(80, 30),
+        textStyle: TextStyle(fontSize: 12),
       ),
-      child: Text(label, style: TextStyle(fontSize: 12)),
+      child: Text(label),
     );
   }
 }
+
+
+
+
+
+
 
