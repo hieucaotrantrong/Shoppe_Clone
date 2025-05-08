@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:food_app/services/api_service.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 class ManageOrders extends StatefulWidget {
   const ManageOrders({Key? key}) : super(key: key);
@@ -12,11 +13,23 @@ class ManageOrders extends StatefulWidget {
 class _ManageOrdersState extends State<ManageOrders> {
   late Future<List<Map<String, dynamic>>> _ordersFuture;
   bool _isLoading = false;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _refreshOrders();
+    
+    // Tự động làm mới danh sách đơn hàng mỗi 30 giây
+    _refreshTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+      _refreshOrders();
+    });
+  }
+  
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _refreshOrders() async {
@@ -268,3 +281,4 @@ class _ManageOrdersState extends State<ManageOrders> {
     );
   }
 }
+

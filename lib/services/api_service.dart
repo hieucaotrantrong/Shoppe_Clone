@@ -48,21 +48,24 @@ class ApiService {
   }
 
   // Đăng nhập với timeout
-  static Future<Map<String, dynamic>?> login(String email, String password) async {
+  static Future<Map<String, dynamic>?> login(
+      String email, String password) async {
     try {
       print('Attempting to login with URL: $baseUrl/users/login'); // Debug log
-      
-      final response = await http.post(
-        Uri.parse('$baseUrl/users/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'email': email,
-          'password': password,
-        }),
-      ).timeout(requestTimeout);
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/users/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'email': email,
+              'password': password,
+            }),
+          )
+          .timeout(requestTimeout);
 
       print('Login response status: ${response.statusCode}'); // Debug log
-      
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -76,20 +79,45 @@ class ApiService {
     }
   }
 
-  // Lấy danh sách sản phẩm
-  static Future<List<Map<String, dynamic>>> getFoodItems() async {
+  // Phương thức đầu tiên - đổi tên thành getProductsData
+  static Future<Map<String, dynamic>?> getProductsData() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/products'));
-      
+      final response = await http.get(
+        Uri.parse('$baseUrl/products'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        if (data['status'] == 'success' && data['data'] != null) {
-          return List<Map<String, dynamic>>.from(data['data']);
-        }
+        return json.decode(response.body);
+      } else {
+        print('Failed to load products: ${response.statusCode}');
+        print('Response: ${response.body}');
+        return null;
       }
-      return [];
     } catch (e) {
-      print('Error fetching food items: $e');
+      print('Error getting products: $e');
+      return null;
+    }
+  }
+
+  // Phương thức thứ hai - giữ nguyên tên getProducts
+  static Future<List<Map<String, dynamic>>> getProducts() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/products'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['data']);
+      } else {
+        print('Failed to load products: ${response.statusCode}');
+        print('Response: ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      print('Error getting products: $e');
       return [];
     }
   }
@@ -98,15 +126,33 @@ class ApiService {
   static Future<Map<String, dynamic>?> createOrder(
       int userId, double totalAmount, List<Map<String, dynamic>> items) async {
     try {
+      // In ra dữ liệu để debug
+      print('Creating order with:');
+      print('userId: $userId');
+      print('totalAmount: $totalAmount');
+      print('items: $items');
+      
+      // Chuyển đổi id từ string sang int nếu cần
+      final formattedItems = items.map((item) => {
+        'product_id': int.tryParse(item['id'].toString()) ?? 0,
+        'quantity': item['quantity'],
+        'price': item['price']
+      }).toList();
+      
+      print('Formatted items: $formattedItems');
+      
       final response = await http.post(
         Uri.parse('$baseUrl/orders'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'user_id': userId,
           'total_amount': totalAmount,
-          'items': items,
+          'items': formattedItems,
         }),
-      );
+      ).timeout(requestTimeout);
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       if (response.statusCode == 201) {
         return json.decode(response.body);
@@ -122,14 +168,15 @@ class ApiService {
   }
 
   // Thêm sản phẩm mới
-  static Future<Map<String, dynamic>?> createProduct(Map<String, dynamic> productData) async {
+  static Future<Map<String, dynamic>?> createProduct(
+      Map<String, dynamic> productData) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/products'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(productData),
       );
-      
+
       if (response.statusCode == 201) {
         return json.decode(response.body);
       } else {
@@ -143,15 +190,16 @@ class ApiService {
     }
   }
 
-  // Cập nhật sản phẩm
-  static Future<Map<String, dynamic>?> updateProduct(String id, Map<String, dynamic> productData) async {
+  // Cập nhật sản phẩm - đảm bảo tham số id là String
+  static Future<Map<String, dynamic>?> updateProduct(
+      String id, Map<String, dynamic> productData) async {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/products/$id'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(productData),
       );
-      
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -165,14 +213,14 @@ class ApiService {
     }
   }
 
-  // Xóa sản phẩm
-  static Future<Map<String, dynamic>?> deleteProduct(dynamic id) async {
+  // Xóa sản phẩm - đảm bảo tham số id là String
+  static Future<Map<String, dynamic>?> deleteProduct(String id) async {
     try {
       final response = await http.delete(
         Uri.parse('$baseUrl/products/$id'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 10));
-      
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -190,7 +238,7 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getAllOrders() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/orders'));
-      
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         if (data['status'] == 'success' && data['data'] != null) {
@@ -205,14 +253,15 @@ class ApiService {
   }
 
   // Cập nhật trạng thái đơn hàng
-  static Future<Map<String, dynamic>?> updateOrderStatus(String orderId, String status) async {
+  static Future<Map<String, dynamic>?> updateOrderStatus(
+      String orderId, String status) async {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/orders/$orderId/status'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'status': status}),
       );
-      
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -227,23 +276,24 @@ class ApiService {
   }
 
   // Thêm phương thức để lấy danh sách sản phẩm
-  static Future<Map<String, dynamic>?> getProducts() async {
+  static Future<List<Map<String, dynamic>>> getProductsList() async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/products'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 10));
-      
+
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['data']);
       } else {
         print('Failed to load products: ${response.statusCode}');
         print('Response: ${response.body}');
-        return null;
+        return [];
       }
     } catch (e) {
       print('Error getting products: $e');
-      return null;
+      return [];
     }
   }
 }

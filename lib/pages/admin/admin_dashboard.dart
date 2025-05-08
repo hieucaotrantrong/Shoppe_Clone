@@ -154,8 +154,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       mainAxisSpacing: 15,
       children: [
         _buildDashboardCard(
-          "Products",
-          Icons.fastfood,
+          "Sản phẩm",
+          Icons.shopping_bag,
           Colors.blue,
           () {
             Navigator.push(
@@ -165,7 +165,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           },
         ),
         _buildDashboardCard(
-          "Users",
+          "Người dùng",
           Icons.people,
           Colors.green,
           () {
@@ -173,7 +173,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           },
         ),
         _buildDashboardCard(
-          "Orders",
+          "Đơn hàng",
           Icons.shopping_cart,
           Colors.orange,
           () {
@@ -184,7 +184,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           },
         ),
         _buildDashboardCard(
-          "Reports",
+          "Báo cáo",
           Icons.bar_chart,
           Colors.purple,
           () {
@@ -275,3 +275,5 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 }
+
+

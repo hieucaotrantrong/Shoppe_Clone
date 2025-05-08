@@ -3,23 +3,23 @@ import 'package:flutter/material.dart';
 class CategoriesSection extends StatelessWidget {
   final String selectedCategory;
   final Function() onAllTap;
-  final Function() onBurgerTap;
-  final Function() onPizzaTap;
-  final Function() onSaladTap;
-  final Function() onIceCreamTap;
-  final Function() onDrinksTap;
-  final Function() onPastaTap;
+  final Function() onClothingTap;
+  final Function() onShoesTap;
+  final Function() onAccessoriesTap;
+  final Function() onElectronicsTap;
+  final Function() onSportsTap;
+  final Function() onBeautyTap;
 
   const CategoriesSection({
     Key? key,
     required this.selectedCategory,
     required this.onAllTap,
-    required this.onBurgerTap,
-    required this.onPizzaTap,
-    required this.onSaladTap,
-    required this.onIceCreamTap,
-    required this.onDrinksTap,
-    required this.onPastaTap,
+    required this.onClothingTap,
+    required this.onShoesTap,
+    required this.onAccessoriesTap,
+    required this.onElectronicsTap,
+    required this.onSportsTap,
+    required this.onBeautyTap,
   }) : super(key: key);
 
   @override
@@ -43,52 +43,52 @@ class CategoriesSection extends StatelessWidget {
             child: Row(
               children: [
                 _buildCategoryButton(
-                  'images/all.png',
+                  'images/banner.png',
                   selectedCategory == "All",
-                  'All',
+                  'Tất cả',
                   onAllTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/burger.png',
-                  selectedCategory == "Burger",
-                  'Burger',
-                  onBurgerTap,
+                  'images/banner.png',
+                  selectedCategory == "Clothing",
+                  'Quần áo',
+                  onClothingTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/pizza.png',
-                  selectedCategory == "Pizza",
-                  'Pizza',
-                  onPizzaTap,
+                  'images/banner.png',
+                  selectedCategory == "Shoes",
+                  'Giày dép',
+                  onShoesTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/salad.png',
-                  selectedCategory == "Salad",
-                  'Salad',
-                  onSaladTap,
+                  'images/banner.png',
+                  selectedCategory == "Accessories",
+                  'Phụ kiện',
+                  onAccessoriesTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/ice-cream.png',
-                  selectedCategory == "Dessert",
-                  'Dessert',
-                  onIceCreamTap,
+                  'images/banner.png',
+                  selectedCategory == "Electronics",
+                  'Điện tử',
+                  onElectronicsTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/drinks.png',
-                  selectedCategory == "Drinks",
-                  'Drinks',
-                  onDrinksTap,
+                  'images/banner.png',
+                  selectedCategory == "Sports",
+                  'Thể thao',
+                  onSportsTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/pasta.png',
-                  selectedCategory == "Pasta",
-                  'Pasta',
-                  onPastaTap,
+                  'images/banner.png',
+                  selectedCategory == "Beauty",
+                  'Làm đẹp',
+                  onBeautyTap,
                 ),
               ],
             ),
@@ -121,7 +121,8 @@ class CategoriesSection extends StatelessWidget {
               icon,
               height: 30,
               width: 30,
-              color: isSelected ? Colors.white : Colors.black87,
+              // Xóa dòng này để hiển thị hình ảnh gốc thay vì màu đen/trắng
+              // color: isSelected ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 8),
@@ -138,4 +139,3 @@ class CategoriesSection extends StatelessWidget {
     );
   }
 }
-

@@ -244,8 +244,8 @@ app.post('/api/orders', async (req, res) => {
       // Thêm các món ăn vào đơn hàng
       for (const item of items) {
         await connection.query(
-          'INSERT INTO order_items (order_id, food_id, quantity, price) VALUES (?, ?, ?, ?)',
-          [orderId, item.food_id, item.quantity, item.price]
+          'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
+          [orderId, item.product_id, item.quantity, item.price]
         );
       }
 
@@ -347,7 +347,7 @@ app.get('/api/orders', async (req, res) => {
       JOIN users u ON o.user_id = u.id
       ORDER BY o.created_at DESC
     `);
-    
+
     // Lấy chi tiết đơn hàng cho mỗi đơn hàng
     for (let i = 0; i < rows.length; i++) {
       const [orderItems] = await pool.query(`
@@ -356,10 +356,10 @@ app.get('/api/orders', async (req, res) => {
         JOIN products p ON oi.product_id = p.id
         WHERE oi.order_id = ?
       `, [rows[i].id]);
-      
+
       rows[i].items = orderItems;
     }
-    
+
     res.json({ status: 'success', data: rows });
   } catch (error) {
     console.error('Error fetching orders:', error);
@@ -372,28 +372,28 @@ app.put('/api/orders/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
     const orderId = req.params.id;
-    
+
     if (!status) {
       return res.status(400).json({ status: 'error', message: 'Status is required' });
     }
-    
+
     // Kiểm tra trạng thái hợp lệ
     const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ status: 'error', message: 'Invalid status' });
     }
-    
+
     const [result] = await pool.query(
       'UPDATE orders SET status = ? WHERE id = ?',
       [status, orderId]
     );
-    
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ status: 'error', message: 'Order not found' });
     }
-    
-    res.json({ 
-      status: 'success', 
+
+    res.json({
+      status: 'success',
       message: 'Order status updated successfully',
       data: { id: orderId, status }
     });
@@ -407,38 +407,38 @@ app.put('/api/orders/:id/status', async (req, res) => {
 app.post('/api/orders', async (req, res) => {
   try {
     const { user_id, total_amount, items } = req.body;
-    
+
     if (!user_id || !total_amount || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ status: 'error', message: 'Invalid order data' });
     }
-    
+
     // Bắt đầu transaction
     const connection = await pool.getConnection();
     await connection.beginTransaction();
-    
+
     try {
       // Tạo đơn hàng
       const [orderResult] = await connection.query(
         'INSERT INTO orders (user_id, total_amount, status) VALUES (?, ?, ?)',
         [user_id, total_amount, 'pending']
       );
-      
+
       const orderId = orderResult.insertId;
-      
+
       // Thêm các mục đơn hàng
       for (const item of items) {
         await connection.query(
           'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
-          [orderId, item.id, item.quantity, item.price]
+          [orderId, item.product_id, item.quantity, item.price]
         );
       }
-      
+
       // Commit transaction
       await connection.commit();
       connection.release();
-      
-      res.status(201).json({ 
-        status: 'success', 
+
+      res.status(201).json({
+        status: 'success',
         message: 'Order created successfully',
         data: { order_id: orderId }
       });
@@ -450,7 +450,7 @@ app.post('/api/orders', async (req, res) => {
     }
   } catch (error) {
     console.error('Error creating order:', error);
-    res.status(500).json({ status: 'error', message: 'Internal server error' });
+    res.status(500).json({ status: 'error', message: error.message });
   }
 });
 
@@ -463,7 +463,7 @@ app.get('/api/products', async (req, res) => {
       SELECT * FROM products
       ORDER BY name ASC
     `);
-    
+
     res.json({ status: 'success', data: rows });
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -475,16 +475,16 @@ app.get('/api/products', async (req, res) => {
 app.get('/api/products/:id', async (req, res) => {
   try {
     const productId = req.params.id;
-    
+
     const [rows] = await pool.query(
       'SELECT * FROM products WHERE id = ?',
       [productId]
     );
-    
+
     if (rows.length === 0) {
       return res.status(404).json({ status: 'error', message: 'Product not found' });
     }
-    
+
     res.json({ status: 'success', data: rows[0] });
   } catch (error) {
     console.error('Error fetching product:', error);
@@ -496,20 +496,20 @@ app.get('/api/products/:id', async (req, res) => {
 app.post('/api/products', async (req, res) => {
   try {
     const { name, price, description, image_path, category } = req.body;
-    
+
     if (!name || !price) {
       return res.status(400).json({ status: 'error', message: 'Name and price are required' });
     }
-    
+
     const [result] = await pool.query(
       'INSERT INTO products (name, price, description, image_path, category) VALUES (?, ?, ?, ?, ?)',
       [name, price, description || '', image_path || '', category || 'Other']
     );
-    
-    res.status(201).json({ 
-      status: 'success', 
+
+    res.status(201).json({
+      status: 'success',
       message: 'Product created successfully',
-      data: { 
+      data: {
         id: result.insertId,
         name,
         price,
@@ -529,24 +529,24 @@ app.put('/api/products/:id', async (req, res) => {
   try {
     const productId = req.params.id;
     const { name, price, description, image_path, category } = req.body;
-    
+
     if (!name || !price) {
       return res.status(400).json({ status: 'error', message: 'Name and price are required' });
     }
-    
+
     const [result] = await pool.query(
       'UPDATE products SET name = ?, price = ?, description = ?, image_path = ?, category = ? WHERE id = ?',
       [name, price, description || '', image_path || '', category || 'Other', productId]
     );
-    
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ status: 'error', message: 'Product not found' });
     }
-    
-    res.json({ 
-      status: 'success', 
+
+    res.json({
+      status: 'success',
       message: 'Product updated successfully',
-      data: { 
+      data: {
         id: productId,
         name,
         price,
@@ -565,18 +565,18 @@ app.put('/api/products/:id', async (req, res) => {
 app.delete('/api/products/:id', async (req, res) => {
   try {
     const productId = req.params.id;
-    
+
     const [result] = await pool.query(
       'DELETE FROM products WHERE id = ?',
       [productId]
     );
-    
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ status: 'error', message: 'Product not found' });
     }
-    
-    res.json({ 
-      status: 'success', 
+
+    res.json({
+      status: 'success',
       message: 'Product deleted successfully',
       data: { id: productId }
     });
@@ -585,5 +585,7 @@ app.delete('/api/products/:id', async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
+
+
 
 

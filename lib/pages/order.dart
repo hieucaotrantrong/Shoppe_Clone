@@ -255,6 +255,15 @@ class Order extends StatelessWidget {
       // Tính tổng tiền
       final totalAmount = calculateTotal(cartProvider.cartItems);
 
+      // In thông tin để debug
+      print('Sending order: userId=$userId, totalAmount=$totalAmount');
+      print('Items: ${cartProvider.cartItems}');
+      
+      // Kiểm tra id của sản phẩm
+      for (var item in cartProvider.cartItems) {
+        print('Product ID: ${item['id']}, Type: ${item['id'].runtimeType}');
+      }
+
       // Tạo đơn hàng trong cơ sở dữ liệu
       final result = await ApiService.createOrder(
         int.parse(userId),
@@ -277,7 +286,10 @@ class Order extends StatelessWidget {
             content: Text("Mã đơn hàng của bạn là: #${result['data']['order_id']}"),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(); // Quay lại trang trước
+                },
                 child: Text("OK"),
               ),
             ],
@@ -298,6 +310,8 @@ class Order extends StatelessWidget {
     }
   }
 }
+
+
 
 
 

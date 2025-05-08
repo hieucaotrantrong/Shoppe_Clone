@@ -34,11 +34,15 @@ flutter:
 
   assets:
     - images/
+    - images/banner.png
+  
+    # Thêm các ảnh khác nếu cần
 
   fonts:
     - family: Poppins
       fonts:
         - asset: fonts/Poppins-SemiBold.ttf
+
 
 
 

@@ -83,12 +83,12 @@ class _HomeState extends State<Home> {
                   CategoriesSection(
                     selectedCategory: selectedCategory,
                     onAllTap: () => _selectCategory("All"),
-                    onBurgerTap: () => _selectCategory("Burger"),
-                    onPizzaTap: () => _selectCategory("Pizza"),
-                    onSaladTap: () => _selectCategory("Salad"),
-                    onIceCreamTap: () => _selectCategory("Dessert"),
-                    onDrinksTap: () => _selectCategory("Drinks"),
-                    onPastaTap: () => _selectCategory("Pasta"),
+                    onClothingTap: () => _selectCategory("Clothing"),
+                    onShoesTap: () => _selectCategory("Shoes"),
+                    onAccessoriesTap: () => _selectCategory("Accessories"),
+                    onElectronicsTap: () => _selectCategory("Electronics"),
+                    onSportsTap: () => _selectCategory("Sports"),
+                    onBeautyTap: () => _selectCategory("Beauty"),
                   ),
 
                   // Products Grid
@@ -105,4 +105,7 @@ class _HomeState extends State<Home> {
     );
   }
 }
+
+
+
 

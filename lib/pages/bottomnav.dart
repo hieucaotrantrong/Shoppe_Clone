@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:food_app/pages/home.dart';
 import 'package:food_app/pages/order.dart';
 import 'package:food_app/pages/profile.dart';
-import 'package:food_app/pages/wallet.dart';
+// Xóa import wallet
 import 'package:food_app/providers/cart_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -43,10 +43,11 @@ class _BottomNavState extends State<BottomNav> {
         items: const [
           Icon(Icons.home, color: Colors.white),
           Icon(Icons.shopping_cart, color: Colors.white),
-          Icon(Icons.wallet, color: Colors.white),
           Icon(Icons.person, color: Colors.white),
         ],
       ),
     );
   }
 }
+
+

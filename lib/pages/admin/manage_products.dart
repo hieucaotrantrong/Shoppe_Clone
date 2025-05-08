@@ -18,15 +18,16 @@ class _ManageProductsState extends State<ManageProducts> {
 
   Future<void> _fetchProducts() async {
     try {
-      final result = await ApiService.getProducts();
+      final products = await ApiService.getProducts();
       setState(() {
-        _products = result?['data'] ?? [];
+        _products = products;
         _isLoading = false;
       });
     } catch (e) {
       print('Error fetching products: $e');
       setState(() {
         _isLoading = false;
+        _products = [];
       });
     }
   }
@@ -258,11 +259,12 @@ class _ManageProductsState extends State<ManageProducts> {
                       value: selectedCategory,
                       decoration: InputDecoration(labelText: 'Danh mục'),
                       items: [
-                        'Burger',
-                        'Pizza',
-                        'Pasta',
-                        'Salad',
-                        'Drink',
+                        'Clothing',
+                        'Shoes',
+                        'Accessories',
+                        'Electronics',
+                        'Sports',
+                        'Beauty',
                         'Other',
                       ].map((category) {
                         return DropdownMenuItem(
@@ -381,11 +383,12 @@ class _ManageProductsState extends State<ManageProducts> {
                       value: selectedCategory,
                       decoration: InputDecoration(labelText: 'Danh mục'),
                       items: [
-                        'Burger',
-                        'Pizza',
-                        'Pasta',
-                        'Salad',
-                        'Drink',
+                        'Clothing',
+                        'Shoes',
+                        'Accessories',
+                        'Electronics',
+                        'Sports',
+                        'Beauty',
                         'Other',
                       ].map((category) {
                         return DropdownMenuItem(
@@ -436,7 +439,7 @@ class _ManageProductsState extends State<ManageProducts> {
                     });
 
                     final result = await ApiService.updateProduct(
-                      product['id'],
+                      product['id'].toString(), // Chuyển đổi thành String
                       productData,
                     );
                     
@@ -488,7 +491,9 @@ class _ManageProductsState extends State<ManageProducts> {
                   _isLoading = true;
                 });
 
-                final result = await ApiService.deleteProduct(product['id']);
+                final result = await ApiService.deleteProduct(
+                  product['id'].toString(), // Chuyển đổi thành String
+                );
                 
                 if (result != null && result['status'] == 'success') {
                   _fetchProducts();
@@ -512,6 +517,10 @@ class _ManageProductsState extends State<ManageProducts> {
     );
   }
 }
+
+
+
+
 
 
 

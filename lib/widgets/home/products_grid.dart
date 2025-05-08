@@ -18,12 +18,12 @@ class ProductsGrid extends StatefulWidget {
 }
 
 class _ProductsGridState extends State<ProductsGrid> {
-  late Future<List<Map<String, dynamic>>> _foodItemsFuture;
+  late Future<List<Map<String, dynamic>>> _productsFuture;
 
   @override
   void initState() {
     super.initState();
-    _foodItemsFuture = _getFoodItems();
+    _productsFuture = _getProducts();
   }
 
   @override
@@ -32,38 +32,18 @@ class _ProductsGridState extends State<ProductsGrid> {
     if (oldWidget.category != widget.category ||
         oldWidget.searchQuery != widget.searchQuery) {
       setState(() {
-        _foodItemsFuture = _getFoodItems();
+        _productsFuture = _getProducts();
       });
     }
   }
 
   // Phương thức để lấy dữ liệu từ ApiService
-  Future<List<Map<String, dynamic>>> _getFoodItems() async {
+  Future<List<Map<String, dynamic>>> _getProducts() async {
     try {
-      List<Map<String, dynamic>> items = await ApiService.getFoodItems();
-
-      // Lọc theo danh mục nếu có
-      if (widget.category != null && widget.category!.isNotEmpty) {
-        items = items
-            .where((item) =>
-                item['category'].toString().toLowerCase() ==
-                widget.category!.toLowerCase())
-            .toList();
-      }
-
-      // Lọc theo từ khóa tìm kiếm nếu có
-      if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
-        items = items
-            .where((item) => item['name']
-                .toString()
-                .toLowerCase()
-                .contains(widget.searchQuery!.toLowerCase()))
-            .toList();
-      }
-
-      return items;
+      final products = await ApiService.getProducts();
+      return products;
     } catch (e) {
-      print('Error loading food items: $e');
+      print('Error loading products: $e');
       return [];
     }
   }
@@ -81,7 +61,7 @@ class _ProductsGridState extends State<ProductsGrid> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Popular Items",
+                  "Sản phẩm phổ biến",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -105,7 +85,7 @@ class _ProductsGridState extends State<ProductsGrid> {
           ),
           const SizedBox(height: 10),
           FutureBuilder<List<Map<String, dynamic>>>(
-            future: _foodItemsFuture,
+            future: _productsFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -304,3 +284,12 @@ class ShopeeStyleProductCard extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+

@@ -21,16 +21,17 @@ class _ProductFormState extends State<ProductForm> {
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _imagePathController = TextEditingController();
-  String _selectedCategory = 'Burger';
+  String _selectedCategory = 'Clothing';
   bool _isLoading = false;
 
   final List<String> _categories = [
-    'Burger',
-    'Pizza',
-    'Salad',
-    'Dessert',
-    'Drinks',
-    'Pasta',
+    'Clothing',
+    'Shoes',
+    'Accessories',
+    'Electronics',
+    'Sports',
+    'Beauty',
+    'Other',
   ];
 
   @override
@@ -41,7 +42,7 @@ class _ProductFormState extends State<ProductForm> {
       _priceController.text = widget.product!['price'].toString();
       _descriptionController.text = widget.product!['description'] ?? '';
       _imagePathController.text = widget.product!['image_path'] ?? '';
-      _selectedCategory = widget.product!['category'] ?? 'Burger';
+      _selectedCategory = widget.product!['category'] ?? 'Clothing';
     }
   }
 
@@ -75,7 +76,7 @@ class _ProductFormState extends State<ProductForm> {
       if (widget.product != null) {
         // Cập nhật sản phẩm
         result = await ApiService.updateProduct(
-          widget.product!['id'].toString(),
+          widget.product!['id'].toString(), // Chuyển đổi thành String
           productData,
         );
       } else {
@@ -242,3 +243,5 @@ class _ProductFormState extends State<ProductForm> {
     );
   }
 }
+
+

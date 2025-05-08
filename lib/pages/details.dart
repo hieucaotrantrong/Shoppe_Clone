@@ -51,13 +51,10 @@ class _DetailsState extends State<Details> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        title: Text("Chi tiết sản phẩm"),
+        backgroundColor: Color(0xFFff5722),
+        foregroundColor: Colors.white,
         elevation: 0,
-        title: Text(
-          "Chi tiết sản phẩm",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-        ),
         actions: [
           IconButton(
             icon: Icon(Icons.share_outlined),
@@ -370,6 +367,10 @@ class _DetailsState extends State<Details> {
                       ),
                     ),
                     onPressed: () {
+                      // In ra id để debug
+                      print('Adding product to cart with id: ${widget.product["id"]}');
+                      print('Product id type: ${widget.product["id"].runtimeType}');
+                      
                       cartProvider.addToCart({
                         "id": widget.product["id"] ?? "1",
                         "name": widget.product["Name"],
@@ -405,6 +406,9 @@ class _DetailsState extends State<Details> {
     );
   }
 }
+
+
+
 
 
 
