@@ -442,16 +442,16 @@ app.post('/api/orders', async (req, res) => {
   try {
     const { user_id, total_amount, items } = req.body;
     
+    console.log('Received order request:', { user_id, total_amount, items });
+    
     if (!user_id || !total_amount || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ status: 'error', message: 'Invalid order data' });
     }
-    
-    console.log('Received order data:', { user_id, total_amount, items });
-    
+
     // Bắt đầu transaction
     const connection = await pool.getConnection();
     await connection.beginTransaction();
-    
+
     try {
       // Tạo đơn hàng
       const [orderResult] = await connection.query(
@@ -461,17 +461,23 @@ app.post('/api/orders', async (req, res) => {
       
       const orderId = orderResult.insertId;
       
-      // Thêm các mục đơn hàng
+      // Kiểm tra xem product_id có tồn tại trong bảng food_items không
       for (const item of items) {
-        console.log('Adding order item:', item);
+        const productId = item.product_id;
         
-        // Đảm bảo rằng tên sản phẩm được truyền đúng cách
-        const productName = item.name || 'Unknown';
-        console.log('Product name to be saved:', productName);
+        // Kiểm tra trong bảng food_items thay vì products
+        const [productCheck] = await connection.query(
+          'SELECT id FROM food_items WHERE id = ?',
+          [productId]
+        );
+        
+        if (productCheck.length === 0) {
+          throw new Error(`Product with ID ${productId} does not exist in food_items table`);
+        }
         
         await connection.query(
-          'INSERT INTO order_items (order_id, product_id, name, quantity, price) VALUES (?, ?, ?, ?, ?)',
-          [orderId, item.product_id, productName, item.quantity, item.price]
+          'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
+          [orderId, productId, item.quantity, item.price]
         );
       }
       
@@ -498,18 +504,41 @@ app.post('/api/orders', async (req, res) => {
 
 // API endpoints cho sản phẩm (products)
 
-// Lấy tất cả sản phẩm
+// Lấy tất cả sản phẩm với tùy chọn lọc theo danh mục và tìm kiếm
 app.get('/api/products', async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT * FROM products
-      ORDER BY name ASC
-    `);
-
+    const { category, search } = req.query;
+    
+    console.log(`Fetching products with category: ${category}, search: ${search}`);
+    
+    let query = 'SELECT * FROM products WHERE 1=1';
+    const params = [];
+    
+    // Lọc theo danh mục nếu được cung cấp
+    if (category && category !== 'All') {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+    
+    // Tìm kiếm theo tên sản phẩm nếu được cung cấp
+    if (search && search.trim() !== '') {
+      query += ' AND name LIKE ?';
+      params.push(`%${search.trim()}%`);
+      console.log(`Searching for products with name like: %${search.trim()}%`);
+    }
+    
+    query += ' ORDER BY id DESC';
+    
+    console.log('Executing query:', query, 'with params:', params);
+    
+    const [rows] = await pool.query(query, params);
+    
+    console.log(`Found ${rows.length} products`);
+    
     res.json({ status: 'success', data: rows });
   } catch (error) {
     console.error('Error fetching products:', error);
-    res.status(500).json({ status: 'error', message: 'Internal server error' });
+    res.status(500).json({ status: 'error', message: error.message });
   }
 });
 
@@ -627,6 +656,169 @@ app.delete('/api/products/:id', async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
+
+// Lấy tất cả người dùng (cho admin)
+app.get('/api/users', async (req, res) => {
+  try {
+    console.log('Fetching all users...');
+    
+    const [rows] = await pool.query(
+      'SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC'
+    );
+    
+    console.log(`Found ${rows.length} users`);
+    
+    res.json({ status: 'success', data: rows });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// Tạo người dùng mới (cho admin)
+app.post('/api/users', async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ status: 'error', message: 'All fields are required' });
+    }
+
+    // Kiểm tra email đã tồn tại chưa
+    const [existingUsers] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+
+    if (existingUsers.length > 0) {
+      return res.status(409).json({ status: 'error', message: 'Email already exists' });
+    }
+
+    // Mã hóa mật khẩu
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Thêm người dùng mới vào cơ sở dữ liệu
+    const [result] = await pool.query(
+      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+      [name, email, hashedPassword, role]
+    );
+
+    res.status(201).json({
+      status: 'success',
+      message: 'User created successfully',
+      data: {
+        id: result.insertId,
+        name,
+        email,
+        role
+      }
+    });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// Cập nhật người dùng (cho admin)
+app.put('/api/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { name, email, password, role } = req.body;
+
+    if (!name || !email || !role) {
+      return res.status(400).json({ status: 'error', message: 'Name, email and role are required' });
+    }
+
+    // Kiểm tra người dùng tồn tại
+    const [existingUsers] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+
+    if (existingUsers.length === 0) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    // Kiểm tra email đã tồn tại chưa (nếu thay đổi email)
+    if (email !== existingUsers[0].email) {
+      const [emailCheck] = await pool.query('SELECT * FROM users WHERE email = ? AND id != ?', [email, userId]);
+
+      if (emailCheck.length > 0) {
+        return res.status(409).json({ status: 'error', message: 'Email already exists' });
+      }
+    }
+
+    let query = 'UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?';
+    let params = [name, email, role, userId];
+
+    // Nếu có mật khẩu mới, mã hóa và cập nhật
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+      query = 'UPDATE users SET name = ?, email = ?, password = ?, role = ? WHERE id = ?';
+      params = [name, email, hashedPassword, role, userId];
+    }
+
+    const [result] = await pool.query(query, params);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    res.json({
+      status: 'success',
+      message: 'User updated successfully',
+      data: {
+        id: userId,
+        name,
+        email,
+        role
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// Xóa người dùng (cho admin)
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    // Kiểm tra người dùng tồn tại
+    const [existingUsers] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+
+    if (existingUsers.length === 0) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    // Kiểm tra xem có phải admin cuối cùng không
+    if (existingUsers[0].role === 'admin') {
+      const [adminCount] = await pool.query('SELECT COUNT(*) as count FROM users WHERE role = "admin"');
+      
+      if (adminCount[0].count <= 1) {
+        return res.status(400).json({ 
+          status: 'error', 
+          message: 'Cannot delete the last admin user' 
+        });
+      }
+    }
+
+    // Xóa người dùng
+    const [result] = await pool.query('DELETE FROM users WHERE id = ?', [userId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    res.json({
+      status: 'success',
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+
+
+
+
 
 
 

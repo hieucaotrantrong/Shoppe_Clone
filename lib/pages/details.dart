@@ -76,18 +76,23 @@ class _DetailsState extends State<Details> {
                   // Ảnh sản phẩm
                   AspectRatio(
                     aspectRatio: 1,
-                    child: Image.asset(
-                      widget.product['ImagePath'] ?? 'images/default_food.png',
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        print("Error loading image: $error");
-                        return Container(
-                          color: Colors.grey[300],
-                          child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey[600]),
-                        );
-                      },
-                    ),
+                    child: widget.product['ImagePath'] != null && widget.product['ImagePath'].toString().isNotEmpty
+                        ? Image.network(
+                            widget.product['ImagePath'],
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              print("Error loading image: $error");
+                              return Container(
+                                color: Colors.grey[300],
+                                child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey[600]),
+                              );
+                            },
+                          )
+                        : Container(
+                            color: Colors.grey[300],
+                            child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey[600]),
+                          ),
                   ),
                   
                   // Thông tin giá và tên sản phẩm
@@ -406,6 +411,7 @@ class _DetailsState extends State<Details> {
     );
   }
 }
+
 
 
 

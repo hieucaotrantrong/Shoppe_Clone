@@ -3,6 +3,7 @@ import 'package:food_app/pages/admin/manage_products.dart';
 import 'package:food_app/pages/login.dart';
 import 'package:food_app/services/shared_pref.dart';
 import 'package:food_app/pages/admin/manage_orders.dart';
+import 'package:food_app/pages/admin/manage_users.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({Key? key}) : super(key: key);
@@ -121,7 +122,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           title: Text('Manage Users'),
           onTap: () {
             Navigator.pop(context);
-            // Điều hướng đến trang quản lý người dùng
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ManageUsers()),
+            );
           },
         ),
         ListTile(
@@ -169,7 +173,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           Icons.people,
           Colors.green,
           () {
-            // Điều hướng đến trang quản lý người dùng
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ManageUsers()),
+            );
           },
         ),
         _buildDashboardCard(
@@ -275,5 +282,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 }
+
 
 

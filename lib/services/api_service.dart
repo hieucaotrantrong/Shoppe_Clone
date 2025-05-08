@@ -327,7 +327,174 @@ class ApiService {
       return [];
     }
   }
+
+  // Lấy tất cả người dùng (cho admin)
+  static Future<List<Map<String, dynamic>>> getAllUsers() async {
+    try {
+      print('Fetching all users from API...');
+      final response = await http.get(Uri.parse('$baseUrl/users'))
+          .timeout(requestTimeout);
+      
+      print('Users API response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['status'] == 'success' && data['data'] != null) {
+          final List<dynamic> rawUsers = data['data'];
+          final users = rawUsers.map((user) => 
+            Map<String, dynamic>.from(user)
+          ).toList();
+          
+          print('Successfully parsed ${users.length} users');
+          return users;
+        } else {
+          print('API returned success but no data or wrong format');
+          return [];
+        }
+      } else {
+        print('API returned error status: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('Error fetching users: $e');
+      return [];
+    }
+  }
+
+  // Tạo người dùng mới (cho admin)
+  static Future<Map<String, dynamic>?> createUser(
+      String name, String email, String password, String role) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/users'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'name': name,
+          'email': email,
+          'password': password,
+          'role': role,
+        }),
+      ).timeout(requestTimeout);
+
+      if (response.statusCode == 201) {
+        return json.decode(response.body);
+      } else {
+        print('User creation failed: ${response.statusCode}');
+        print('Response: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error creating user: $e');
+      return null;
+    }
+  }
+
+  // Cập nhật người dùng (cho admin)
+  static Future<Map<String, dynamic>?> updateUser(
+      String userId, String name, String email, String? password, String role) async {
+    try {
+      final Map<String, dynamic> userData = {
+        'name': name,
+        'email': email,
+        'role': role,
+      };
+      
+      // Chỉ thêm mật khẩu nếu được cung cấp
+      if (password != null && password.isNotEmpty) {
+        userData['password'] = password;
+      }
+      
+      final response = await http.put(
+        Uri.parse('$baseUrl/users/$userId'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(userData),
+      ).timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        print('User update failed: ${response.statusCode}');
+        print('Response: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error updating user: $e');
+      return null;
+    }
+  }
+
+  // Xóa người dùng (cho admin)
+  static Future<Map<String, dynamic>?> deleteUser(String userId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/users/$userId'),
+      ).timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        print('User deletion failed: ${response.statusCode}');
+        print('Response: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error deleting user: $e');
+      return null;
+    }
+  }
+
+  // Lấy tất cả sản phẩm với tùy chọn lọc theo danh mục và tìm kiếm
+  static Future<List<Map<String, dynamic>>> getFilteredProducts({String? category, String? searchQuery}) async {
+    try {
+      // Xây dựng URL với các tham số truy vấn
+      final Uri uri = Uri.parse('$baseUrl/products').replace(
+        queryParameters: {
+          if (category != null && category != 'All') 'category': category,
+          if (searchQuery != null && searchQuery.isNotEmpty) 'search': searchQuery,
+        },
+      );
+      
+      print("Fetching products from: $uri");
+      final response = await http.get(uri);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print("API response: $data");
+        
+        if (data['status'] == 'success') {
+          final List<dynamic> productsJson = data['data'];
+          final products = productsJson.map((json) => json as Map<String, dynamic>).toList();
+          return products;
+        } else {
+          print('API returned error: ${data['message']}');
+          return [];
+        }
+      } else {
+        print('Failed to load products: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('Error in getFilteredProducts: $e');
+      return [];
+    }
+  }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

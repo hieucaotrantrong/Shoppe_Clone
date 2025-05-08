@@ -284,12 +284,3 @@ class ShopeeStyleProductCard extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
