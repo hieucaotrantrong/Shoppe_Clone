@@ -240,7 +240,10 @@ class _ManageOrdersState extends State<ManageOrders> {
                                     (order['items'] as List).length,
                                     (i) {
                                       final item = (order['items'] as List)[i];
-                                      final itemName = item['name'] ?? 'Sản phẩm không xác định';
+                                      // Ưu tiên sử dụng tên sản phẩm từ product_name nếu có
+                                      final itemName = item['product_name'] ?? 
+                                                       item['name'] ?? 
+                                                       'Sản phẩm không xác định';
                                       final itemQuantity = item['quantity'] ?? 1;
                                       final itemPrice = item['price'] ?? 0;
                                       
@@ -302,6 +305,8 @@ class _ManageOrdersState extends State<ManageOrders> {
     );
   }
 }
+
+
 
 
 

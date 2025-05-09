@@ -126,43 +126,39 @@ class ApiService {
   static Future<Map<String, dynamic>?> createOrder(
       int userId, double totalAmount, List<Map<String, dynamic>> items) async {
     try {
-      // In ra dữ liệu để debug
-      print('Creating order with:');
-      print('userId: $userId');
-      print('totalAmount: $totalAmount');
-      print('items: $items');
-
-      // Chuyển đổi id từ string sang int nếu cần và thêm tên sản phẩm
+      // Đảm bảo mỗi item có đủ thông tin, đặc biệt là name
       final formattedItems = items
           .map((item) => {
                 'product_id': int.tryParse(item['id'].toString()) ?? 0,
-                'name': item['name'] ?? 'Unknown',
-                'quantity': item['quantity'],
-                'price': item['price']
+                'name': item['name'] ?? 'Sản phẩm không xác định',
+                'quantity': item['quantity'] ?? 1,
+                'price': double.tryParse(item['price'].toString()) ?? 0.0
               })
           .toList();
 
-      print('Formatted items: $formattedItems');
+      print('Formatted items for order: ${json.encode(formattedItems)}');
+
+      final requestBody = {
+        'user_id': userId,
+        'total_amount': totalAmount,
+        'items': formattedItems,
+      };
+      
+      print('Order request body: ${json.encode(requestBody)}');
 
       final response = await http
           .post(
             Uri.parse('$baseUrl/orders'),
             headers: {'Content-Type': 'application/json'},
-            body: json.encode({
-              'user_id': userId,
-              'total_amount': totalAmount,
-              'items': formattedItems,
-            }),
+            body: json.encode(requestBody),
           )
           .timeout(requestTimeout);
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
       if (response.statusCode == 201) {
+        print('Order created successfully: ${response.body}');
         return json.decode(response.body);
       } else {
-        print('Order creation failed: ${response.statusCode}');
+        print('Failed to create order: ${response.statusCode}');
         print('Response: ${response.body}');
         return null;
       }
@@ -490,3 +486,8 @@ class ApiService {
     }
   }
 }
+
+
+
+
+

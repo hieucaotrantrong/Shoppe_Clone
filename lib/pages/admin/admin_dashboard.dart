@@ -23,7 +23,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   _loadAdminInfo() async {
-    adminName = await SharedPreferenceHelper().getUserName();
+    String? userName = await SharedPreferenceHelper().getUserName();
+    adminName = userName;
     setState(() {
       _isLoading = false;
     });
@@ -271,7 +272,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (confirm == true) {
       // Xóa thông tin đăng nhập
       await SharedPreferenceHelper().clearUserData();
-
+      
       // Chuyển về trang đăng nhập
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => LogIn()),
@@ -280,3 +281,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 }
+
+
+
+
+
+
+
+
+
+

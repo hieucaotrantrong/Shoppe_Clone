@@ -8,7 +8,8 @@ class SharedPreferenceHelper {
   static const String userProfileKey = 'user_profile';
 
   // Lưu thông tin người dùng
-  Future<bool> saveUserData(String userId, String name, String email, String role) async {
+  Future<bool> saveUserData(
+      String userId, String name, String email, String role) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString(userIdKey, userId);
     await prefs.setString(userNameKey, name);
@@ -76,7 +77,4 @@ class SharedPreferenceHelper {
     return prefs.getString(userProfileKey);
   }
 }
-
-
-
 
