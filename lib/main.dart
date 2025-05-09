@@ -5,10 +5,6 @@ import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Bỏ phần kết nối MySQL trực tiếp
-  // Thay vào đó, sẽ sử dụng API từ backend Node.js
-  
   runApp(
     ChangeNotifierProvider(create: (context) => CartProvider(), child: MyApp()),
   );
@@ -21,7 +17,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Food App',
+      title: 'Shoppe App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -30,8 +26,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-
-
-
-

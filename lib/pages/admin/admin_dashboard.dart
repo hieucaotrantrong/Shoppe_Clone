@@ -191,12 +191,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           },
         ),
         _buildDashboardCard(
-          "Báo cáo",
+          "Hỗ Trợ",
           Icons.bar_chart,
           Colors.purple,
-          () {
-            // Điều hướng đến trang báo cáo
-          },
+          () {},
         ),
       ],
     );
@@ -282,6 +280,3 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 }
-
-
-

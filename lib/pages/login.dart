@@ -182,14 +182,15 @@ class _LogInState extends State<LogIn> {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không có kết nối mạng. Vui lòng kiểm tra lại.')),
+          SnackBar(
+              content: Text('Không có kết nối mạng. Vui lòng kiểm tra lại.')),
         );
         return;
       }
 
       try {
         print('Attempting to login with: ${emailController.text}'); // Debug log
-        
+
         final result = await ApiService.login(
           emailController.text.trim(),
           passwordController.text.trim(),
@@ -207,12 +208,13 @@ class _LogInState extends State<LogIn> {
             result['data']['email'],
             result['data']['role'],
           );
-          
+
           // Lưu URL ảnh đại diện nếu có
           if (result['data']['profile_image'] != null) {
-            await SharedPreferenceHelper().saveUserProfile(result['data']['profile_image']);
+            await SharedPreferenceHelper()
+                .saveUserProfile(result['data']['profile_image']);
           }
-          
+
           // Kiểm tra vai trò người dùng
           if (result['data']['role'] == 'admin') {
             // Chuyển đến trang admin dashboard
@@ -229,7 +231,9 @@ class _LogInState extends State<LogIn> {
           }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.')),
+            SnackBar(
+                content: Text(
+                    'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.')),
           );
         }
       } catch (e) {
@@ -243,14 +247,3 @@ class _LogInState extends State<LogIn> {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-

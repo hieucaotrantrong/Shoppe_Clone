@@ -23,7 +23,7 @@ class HeaderSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 50, 20, 0),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: Color.fromARGB(255, 240, 245, 181),
         boxShadow: [
           BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(0, 2))
         ],
@@ -52,11 +52,13 @@ class HeaderSection extends StatelessWidget {
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: const Color.fromARGB(221, 220, 149, 129)),
+                  color: const Color.fromARGB(221, 226, 97, 97)),
             ),
             Text(
               "Chào mừng bạn đến với Shoppe",
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              style: TextStyle(
+                  fontSize: 16,
+                  color: const Color.fromARGB(255, 221, 111, 111)),
             ),
           ],
         ),
@@ -111,7 +113,7 @@ class HeaderSection extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: const Color.fromARGB(255, 222, 211, 143).withOpacity(0.1),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

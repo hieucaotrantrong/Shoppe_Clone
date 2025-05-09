@@ -6,14 +6,14 @@ class CartProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get cartItems => _cartItems;
 
   void addToCart(Map<String, dynamic> product, int quantity) {
-    // Kiểm tra xem sản phẩm đã có trong giỏ hàng chưa
+    
     int existingIndex = _cartItems.indexWhere((item) => item['id'] == product['id']);
 
     if (existingIndex != -1) {
-      // Nếu sản phẩm đã có trong giỏ hàng, tăng số lượng
+    
       _cartItems[existingIndex]['quantity'] += quantity;
     } else {
-      // Nếu sản phẩm chưa có trong giỏ hàng, thêm mới
+      
       _cartItems.add({
         'id': product['id'],
         'name': product['name'],

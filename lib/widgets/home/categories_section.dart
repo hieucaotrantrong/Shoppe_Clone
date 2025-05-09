@@ -121,8 +121,6 @@ class CategoriesSection extends StatelessWidget {
               icon,
               height: 30,
               width: 30,
-              // Xóa dòng này để hiển thị hình ảnh gốc thay vì màu đen/trắng
-              // color: isSelected ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 8),

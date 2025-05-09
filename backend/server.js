@@ -33,9 +33,6 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// API routes...
-
-// Kiểm tra kết nối cơ sở dữ liệu khi khởi động
 async function testDatabaseConnection() {
   try {
     const connection = await pool.getConnection();

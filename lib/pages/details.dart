@@ -43,7 +43,7 @@ class _DetailsState extends State<Details> {
     
     final discountedPrice = originalPrice * (1 - discount / 100);
 
-    // In ra thông tin để debug
+    
     print("Product details: ${widget.product}");
     print("Original price: $originalPrice");
     print("Discounted price: $discountedPrice");

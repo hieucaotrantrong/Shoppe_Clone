@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:food_app/pages/home.dart';
 import 'package:food_app/pages/order.dart';
 import 'package:food_app/pages/profile.dart';
-// Xóa import wallet
 import 'package:food_app/providers/cart_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -23,7 +22,7 @@ class _BottomNavState extends State<BottomNav> {
 
     final List<Widget> pages = [
       const Home(),
-      Order(cartItems: cartProvider.cartItems), // Truyền cartItems từ Provider
+      Order(cartItems: cartProvider.cartItems),
       const Profile(),
     ];
 
@@ -44,10 +43,9 @@ class _BottomNavState extends State<BottomNav> {
           Icon(Icons.home, color: Colors.white),
           Icon(Icons.shopping_cart, color: Colors.white),
           Icon(Icons.person, color: Colors.white),
+          Icon(Icons.notifications, color: Colors.white),
         ],
       ),
     );
   }
 }
-
-

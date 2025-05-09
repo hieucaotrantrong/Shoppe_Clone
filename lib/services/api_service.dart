@@ -131,26 +131,30 @@ class ApiService {
       print('userId: $userId');
       print('totalAmount: $totalAmount');
       print('items: $items');
-      
+
       // Chuyển đổi id từ string sang int nếu cần và thêm tên sản phẩm
-      final formattedItems = items.map((item) => {
-        'product_id': int.tryParse(item['id'].toString()) ?? 0,
-        'name': item['name'] ?? 'Unknown',
-        'quantity': item['quantity'],
-        'price': item['price']
-      }).toList();
-      
+      final formattedItems = items
+          .map((item) => {
+                'product_id': int.tryParse(item['id'].toString()) ?? 0,
+                'name': item['name'] ?? 'Unknown',
+                'quantity': item['quantity'],
+                'price': item['price']
+              })
+          .toList();
+
       print('Formatted items: $formattedItems');
-      
-      final response = await http.post(
-        Uri.parse('$baseUrl/orders'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'user_id': userId,
-          'total_amount': totalAmount,
-          'items': formattedItems,
-        }),
-      ).timeout(requestTimeout);
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/orders'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'user_id': userId,
+              'total_amount': totalAmount,
+              'items': formattedItems,
+            }),
+          )
+          .timeout(requestTimeout);
 
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');
@@ -239,9 +243,9 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getAllOrders() async {
     try {
       print('Fetching all orders from API...');
-      final response = await http.get(Uri.parse('$baseUrl/orders'))
-          .timeout(requestTimeout);
-      
+      final response =
+          await http.get(Uri.parse('$baseUrl/orders')).timeout(requestTimeout);
+
       print('Orders API response status: ${response.statusCode}');
       print('Orders API response body: ${response.body}');
 
@@ -252,21 +256,22 @@ class ApiService {
           final List<dynamic> rawOrders = data['data'];
           final orders = rawOrders.map((order) {
             // Đảm bảo mỗi đơn hàng là Map<String, dynamic>
-            final Map<String, dynamic> orderMap = Map<String, dynamic>.from(order);
-            
+            final Map<String, dynamic> orderMap =
+                Map<String, dynamic>.from(order);
+
             // Đảm bảo items là List<Map<String, dynamic>>
             if (orderMap['items'] != null) {
               final List<dynamic> rawItems = orderMap['items'];
-              orderMap['items'] = rawItems.map((item) => 
-                Map<String, dynamic>.from(item)
-              ).toList();
+              orderMap['items'] = rawItems
+                  .map((item) => Map<String, dynamic>.from(item))
+                  .toList();
             } else {
               orderMap['items'] = [];
             }
-            
+
             return orderMap;
           }).toList();
-          
+
           print('Successfully parsed ${orders.length} orders');
           return orders;
         } else {
@@ -332,19 +337,18 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getAllUsers() async {
     try {
       print('Fetching all users from API...');
-      final response = await http.get(Uri.parse('$baseUrl/users'))
-          .timeout(requestTimeout);
-      
+      final response =
+          await http.get(Uri.parse('$baseUrl/users')).timeout(requestTimeout);
+
       print('Users API response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         if (data['status'] == 'success' && data['data'] != null) {
           final List<dynamic> rawUsers = data['data'];
-          final users = rawUsers.map((user) => 
-            Map<String, dynamic>.from(user)
-          ).toList();
-          
+          final users =
+              rawUsers.map((user) => Map<String, dynamic>.from(user)).toList();
+
           print('Successfully parsed ${users.length} users');
           return users;
         } else {
@@ -365,16 +369,18 @@ class ApiService {
   static Future<Map<String, dynamic>?> createUser(
       String name, String email, String password, String role) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/users'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'name': name,
-          'email': email,
-          'password': password,
-          'role': role,
-        }),
-      ).timeout(requestTimeout);
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/users'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'name': name,
+              'email': email,
+              'password': password,
+              'role': role,
+            }),
+          )
+          .timeout(requestTimeout);
 
       if (response.statusCode == 201) {
         return json.decode(response.body);
@@ -390,25 +396,27 @@ class ApiService {
   }
 
   // Cập nhật người dùng (cho admin)
-  static Future<Map<String, dynamic>?> updateUser(
-      String userId, String name, String email, String? password, String role) async {
+  static Future<Map<String, dynamic>?> updateUser(String userId, String name,
+      String email, String? password, String role) async {
     try {
       final Map<String, dynamic> userData = {
         'name': name,
         'email': email,
         'role': role,
       };
-      
+
       // Chỉ thêm mật khẩu nếu được cung cấp
       if (password != null && password.isNotEmpty) {
         userData['password'] = password;
       }
-      
-      final response = await http.put(
-        Uri.parse('$baseUrl/users/$userId'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(userData),
-      ).timeout(requestTimeout);
+
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl/users/$userId'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(userData),
+          )
+          .timeout(requestTimeout);
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -426,9 +434,11 @@ class ApiService {
   // Xóa người dùng (cho admin)
   static Future<Map<String, dynamic>?> deleteUser(String userId) async {
     try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/users/$userId'),
-      ).timeout(requestTimeout);
+      final response = await http
+          .delete(
+            Uri.parse('$baseUrl/users/$userId'),
+          )
+          .timeout(requestTimeout);
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -443,27 +453,28 @@ class ApiService {
     }
   }
 
-  // Lấy tất cả sản phẩm với tùy chọn lọc theo danh mục và tìm kiếm
-  static Future<List<Map<String, dynamic>>> getFilteredProducts({String? category, String? searchQuery}) async {
+  static Future<List<Map<String, dynamic>>> getFilteredProducts(
+      {String? category, String? searchQuery}) async {
     try {
-      // Xây dựng URL với các tham số truy vấn
       final Uri uri = Uri.parse('$baseUrl/products').replace(
         queryParameters: {
           if (category != null && category != 'All') 'category': category,
-          if (searchQuery != null && searchQuery.isNotEmpty) 'search': searchQuery,
+          if (searchQuery != null && searchQuery.isNotEmpty)
+            'search': searchQuery,
         },
       );
-      
+
       print("Fetching products from: $uri");
       final response = await http.get(uri);
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print("API response: $data");
-        
+
         if (data['status'] == 'success') {
           final List<dynamic> productsJson = data['data'];
-          final products = productsJson.map((json) => json as Map<String, dynamic>).toList();
+          final products =
+              productsJson.map((json) => json as Map<String, dynamic>).toList();
           return products;
         } else {
           print('API returned error: ${data['message']}');
@@ -479,32 +490,3 @@ class ApiService {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
