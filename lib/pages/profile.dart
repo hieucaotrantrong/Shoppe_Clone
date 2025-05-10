@@ -1,5 +1,7 @@
+
 import 'package:flutter/material.dart';
 import 'package:food_app/pages/login.dart';
+import 'package:food_app/pages/edit_profile.dart';
 import 'package:food_app/services/shared_pref.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -46,9 +48,13 @@ class _ProfileState extends State<Profile> {
           children: [
             CircleAvatar(
               radius: 60,
+              backgroundColor: Colors.grey[300],
               backgroundImage: profile != null && profile!.isNotEmpty
                   ? NetworkImage(profile!)
-                  : AssetImage('images/profile_placeholder.png') as ImageProvider,
+                  : null,
+              child: profile == null || profile!.isEmpty
+                  ? Icon(Icons.person, size: 60, color: Colors.grey[700])
+                  : null,
             ),
             SizedBox(height: 20),
             Text(
@@ -68,7 +74,13 @@ class _ProfileState extends State<Profile> {
             ),
             SizedBox(height: 30),
             buildProfileItem(Icons.person, "Edit Profile", () {
-              // Chức năng chỉnh sửa hồ sơ
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => EditProfile()),
+              ).then((_) {
+                // Refresh profile data when returning from edit screen
+                getProfileData();
+              });
             }),
             buildProfileItem(Icons.history, "Order History", () {
               // Chuyển đến trang lịch sử đơn hàng
@@ -142,6 +154,9 @@ class _ProfileState extends State<Profile> {
             builder: (context) => LogIn()));
   }
 }
+
+
+
 
 
 

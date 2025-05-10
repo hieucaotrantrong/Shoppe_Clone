@@ -51,17 +51,26 @@ class ProductCard extends StatelessWidget {
             SizedBox(
               height: maxWidth * 0.8,
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                child: product['ImagePath'] != null
-                    ? Image.asset(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(15)),
+                child: product['ImagePath'] != null &&
+                        product['ImagePath'].isNotEmpty
+                    ? Image.network(
                         product['ImagePath'],
                         width: double.infinity,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[300],
+                            child: Icon(Icons.image_not_supported,
+                                size: 40, color: Colors.grey[600]),
+                          );
+                        },
                       )
-                    : Image.asset(
-                        'images/default_food.png',
-                        width: double.infinity,
-                        fit: BoxFit.cover,
+                    : Container(
+                        color: Colors.grey[300],
+                        child: Icon(Icons.image_not_supported,
+                            size: 40, color: Colors.grey[600]),
                       ),
               ),
             ),
@@ -132,8 +141,8 @@ class ProductCard extends StatelessWidget {
 class ShopeeStyleProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
   final String docId;
-  final double discount;
-  final int soldCount;
+  final int discount;
+  final String soldCount;
 
   const ShopeeStyleProductCard({
     Key? key,
@@ -159,74 +168,86 @@ class ShopeeStyleProductCard extends StatelessWidget {
       },
       child: Card(
         elevation: 2,
+        margin: EdgeInsets.all(4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min, // Đảm bảo column chỉ chiếm không gian cần thiết
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Ảnh sản phẩm
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(10),
-                    topRight: Radius.circular(10),
+            // Ảnh sản phẩm với tỷ lệ cố định
+            AspectRatio(
+              aspectRatio: 1.0, // Tỷ lệ 1:1 (hình vuông)
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      topRight: Radius.circular(10),
+                    ),
+                    child: product["ImagePath"] != null && product["ImagePath"].toString().isNotEmpty
+                      ? Image.network(
+                          product["ImagePath"],
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[200],
+                              child: Icon(Icons.image_not_supported, size: 40),
+                            );
+                          },
+                        )
+                      : Container(
+                          color: Colors.grey[200],
+                          child: Icon(Icons.image_not_supported, size: 40),
+                        ),
                   ),
-                  child: Image.network(
-                    product["ImagePath"] ?? "",
-                    height: 120,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 120,
-                        color: Colors.grey[200],
-                        child: Icon(Icons.image_not_supported, size: 40),
-                      );
-                    },
-                  ),
-                ),
-                // Nhãn giảm giá
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(10),
+                  // Nhãn giảm giá
+                  if (discount > 0)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          "-${discount}%",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
                     ),
-                    child: Text(
-                      "-$discount%",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-            // Thông tin sản phẩm
-            Padding(
+            // Thông tin sản phẩm - Sử dụng Container với chiều cao cố định
+            Container(
+              height: 80, // Chiều cao cố định cho phần thông tin
               padding: const EdgeInsets.all(8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Tên sản phẩm
                   Text(
                     product["Name"] ?? "",
-                    maxLines: 2,
+                    maxLines: 1, // Giảm xuống 1 dòng
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
-                      fontSize: 14,
+                      fontSize: 12, // Giảm kích thước font
                     ),
                   ),
                   SizedBox(height: 4),
+                  // Giá
                   Row(
                     children: [
                       Text(
@@ -234,32 +255,33 @@ class ShopeeStyleProductCard extends StatelessWidget {
                         style: TextStyle(
                           color: Colors.red,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 12, // Giảm kích thước font
                         ),
                       ),
                       SizedBox(width: 4),
-                      Text(
-                        "${_formatPrice(originalPrice)}đ",
-                        style: TextStyle(
-                          color: Colors.grey,
-                          decoration: TextDecoration.lineThrough,
-                          fontSize: 12,
+                      Expanded(
+                        child: Text(
+                          "${_formatPrice(originalPrice)}đ",
+                          style: TextStyle(
+                            color: Colors.grey,
+                            decoration: TextDecoration.lineThrough,
+                            fontSize: 10, // Giảm kích thước font
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.star, color: Colors.amber, size: 14),
-                      Text(
-                        "4.8 | Đã bán $soldCount",
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                  Spacer(), // Đẩy phần "Đã bán" xuống dưới cùng
+                  // Đã bán
+                  Text(
+                    "Đã bán $soldCount",
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 10, // Giảm kích thước font
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

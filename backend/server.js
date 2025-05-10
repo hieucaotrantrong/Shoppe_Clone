@@ -3,6 +3,9 @@ const mysql = require('mysql2/promise');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const bcrypt = require('bcrypt'); // Thêm bcrypt
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -854,14 +857,14 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-// Cập nhật người dùng (cho admin)
+// Cập nhật người dùng (cho admin và người dùng thông thường)
 app.put('/api/users/:id', async (req, res) => {
   try {
     const userId = req.params.id;
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, profile_image } = req.body;
 
-    if (!name || !email || !role) {
-      return res.status(400).json({ status: 'error', message: 'Name, email and role are required' });
+    if (!name || !email) {
+      return res.status(400).json({ status: 'error', message: 'Name and email are required' });
     }
 
     // Kiểm tra người dùng tồn tại
@@ -880,14 +883,26 @@ app.put('/api/users/:id', async (req, res) => {
       }
     }
 
-    let query = 'UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?';
-    let params = [name, email, role, userId];
+    let query = 'UPDATE users SET name = ?, email = ? WHERE id = ?';
+    let params = [name, email, userId];
 
     // Nếu có mật khẩu mới, mã hóa và cập nhật
     if (password) {
       const hashedPassword = await bcrypt.hash(password, saltRounds);
-      query = 'UPDATE users SET name = ?, email = ?, password = ?, role = ? WHERE id = ?';
-      params = [name, email, hashedPassword, role, userId];
+      query = 'UPDATE users SET name = ?, email = ?, password = ? WHERE id = ?';
+      params = [name, email, hashedPassword, userId];
+    }
+
+    // Nếu có role (cho admin), cập nhật role
+    if (role) {
+      query = query.replace('WHERE', ', role = ? WHERE');
+      params.splice(params.length - 1, 0, role);
+    }
+
+    // Nếu có ảnh đại diện mới, cập nhật
+    if (profile_image) {
+      query = query.replace('WHERE', ', profile_image = ? WHERE');
+      params.splice(params.length - 1, 0, profile_image);
     }
 
     const [result] = await pool.query(query, params);
@@ -903,7 +918,8 @@ app.put('/api/users/:id', async (req, res) => {
         id: userId,
         name,
         email,
-        role
+        role: role || existingUsers[0].role,
+        profile_image: profile_image || existingUsers[0].profile_image
       }
     });
   } catch (error) {
@@ -1530,13 +1546,177 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
+// Cập nhật thông tin cá nhân (cho người dùng)
+app.put('/api/users/profile/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { name, email, password, profile_image } = req.body;
 
+    if (!name || !email) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Name and email are required'
+      });
+    }
 
+    // Kiểm tra người dùng tồn tại
+    const [existingUsers] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
 
+    if (existingUsers.length === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      });
+    }
 
+    // Kiểm tra email đã tồn tại chưa (nếu thay đổi email)
+    if (email !== existingUsers[0].email) {
+      const [emailCheck] = await pool.query('SELECT * FROM users WHERE email = ? AND id != ?', [email, userId]);
 
+      if (emailCheck.length > 0) {
+        return res.status(409).json({
+          status: 'error',
+          message: 'Email already exists'
+        });
+      }
+    }
 
+    let query = 'UPDATE users SET name = ?, email = ? WHERE id = ?';
+    let params = [name, email, userId];
 
+    // Nếu có mật khẩu mới, mã hóa và cập nhật
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+      query = 'UPDATE users SET name = ?, email = ?, password = ? WHERE id = ?';
+      params = [name, email, hashedPassword, userId];
+    }
+
+    // Nếu có ảnh đại diện mới, cập nhật
+    if (profile_image) {
+      query = query.replace('WHERE', ', profile_image = ? WHERE');
+      params.splice(params.length - 1, 0, profile_image);
+    }
+
+    const [result] = await pool.query(query, params);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      status: 'success',
+      message: 'Profile updated successfully',
+      data: {
+        id: userId,
+        name,
+        email,
+        profile_image: profile_image || existingUsers[0].profile_image
+      }
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+});
+
+// Tạo thư mục uploads nếu chưa tồn tại
+const uploadDir = path.join(__dirname, 'uploads');
+const profileImagesDir = path.join(uploadDir, 'profile_images');
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+if (!fs.existsSync(profileImagesDir)) {
+  fs.mkdirSync(profileImagesDir);
+}
+
+// Cấu hình multer để lưu file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, profileImagesDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'profile-' + uniqueSuffix + ext);
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // Giới hạn 5MB
+  fileFilter: function (req, file, cb) {
+    // Chỉ chấp nhận file ảnh
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
+
+// Phục vụ các file tĩnh từ thư mục uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// API endpoint để upload ảnh đại diện
+app.post('/api/upload-profile-image', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'No file uploaded'
+      });
+    }
+
+    const userId = req.body.user_id;
+    if (!userId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'User ID is required'
+      });
+    }
+
+    // Kiểm tra người dùng tồn tại
+    const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      });
+    }
+
+    // Đường dẫn tương đối đến file ảnh
+    const relativePath = '/uploads/profile_images/' + req.file.filename;
+    
+    // Cập nhật đường dẫn ảnh đại diện trong cơ sở dữ liệu
+    await pool.query(
+      'UPDATE users SET profile_image = ? WHERE id = ?',
+      [relativePath, userId]
+    );
+
+    // Trả về đường dẫn đầy đủ đến ảnh
+    const fullUrl = req.protocol + '://' + req.get('host') + relativePath;
+    
+    res.json({
+      status: 'success',
+      message: 'Profile image uploaded successfully',
+      image_url: fullUrl
+    });
+  } catch (error) {
+    console.error('Error uploading profile image:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+});
 
 
 

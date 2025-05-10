@@ -1,3 +1,4 @@
+
 name: food_app
 description: "A new Flutter project."
 publish_to: 'none'
@@ -34,7 +35,9 @@ flutter:
 
   assets:
     - images/
-    - images/banner.png
+  
+  # Bỏ dòng này
+  # - images/profile_placeholder.png
   
     # Thêm các ảnh khác nếu cần
 
@@ -42,6 +45,10 @@ flutter:
     - family: Poppins
       fonts:
         - asset: fonts/Poppins-SemiBold.ttf
+
+
+
+
 
 
 

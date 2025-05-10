@@ -54,6 +54,28 @@ class _ProductsGridState extends State<ProductsGrid> {
 
   @override
   Widget build(BuildContext context) {
+    // Lấy kích thước màn hình
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Tính toán số cột dựa trên kích thước màn hình
+    int crossAxisCount = 2; // Mặc định là 2 cột
+    double childAspectRatio = 0.7; // Tỷ lệ mặc định
+    
+    // Điều chỉnh layout dựa trên kích thước màn hình
+    if (screenWidth < 360) {
+      crossAxisCount = 2;
+      childAspectRatio = 0.6; // Cao hơn một chút cho màn hình nhỏ
+    } else if (screenWidth < 600) {
+      crossAxisCount = 2;
+      childAspectRatio = 0.7;
+    } else if (screenWidth < 900) {
+      crossAxisCount = 3;
+      childAspectRatio = 0.8;
+    } else {
+      crossAxisCount = 4;
+      childAspectRatio = 0.9;
+    }
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Column(
@@ -92,26 +114,28 @@ class _ProductsGridState extends State<ProductsGrid> {
             future: _productsFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(child: CircularProgressIndicator());
               }
+              
               if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
+                return Center(child: Text('Đã xảy ra lỗi: ${snapshot.error}'));
               }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(child: Text('No items available'));
+              
+              final items = snapshot.data ?? [];
+              
+              if (items.isEmpty) {
+                return Center(child: Text('Không có sản phẩm nào'));
               }
-
-              final items = snapshot.data!;
-
-              // Luôn hiển thị 2 sản phẩm trên một hàng
+              
               return GridView.builder(
+                padding: EdgeInsets.all(8),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, // Luôn 2 sản phẩm trên một hàng
-                  childAspectRatio: 0.7, // Tỷ lệ khung hình sản phẩm
-                  crossAxisSpacing: 10, // Khoảng cách ngang giữa các sản phẩm
-                  mainAxisSpacing: 10, // Khoảng cách dọc giữa các hàng
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.65, // Giảm tỷ lệ để card cao hơn
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
                 ),
                 itemCount: items.length,
                 itemBuilder: (context, index) {
@@ -130,8 +154,7 @@ class _ProductsGridState extends State<ProductsGrid> {
                     discount: index % 3 == 0
                         ? 15
                         : (index % 2 == 0 ? 20 : 10), // Giảm giá ngẫu nhiên
-                    soldCount: (100 + index * 7)
-                        .toString(), // Số lượng đã bán ngẫu nhiên
+                    soldCount: (100 + index * 7).toString(), // Chuyển thành String
                   );
                 },
               );
@@ -160,12 +183,14 @@ class ShopeeStyleProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final imageHeight = screenWidth * 0.25; // Chiều cao ảnh bằng 25% chiều rộng màn hình
+    
     final originalPrice = double.parse(product["Price"].toString());
     final discountedPrice = originalPrice * (1 - discount / 100);
 
     return GestureDetector(
       onTap: () {
-        // Sửa lại phần này để chuyển đến trang chi tiết sản phẩm
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -192,14 +217,24 @@ class ShopeeStyleProductCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(8)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
                   child: AspectRatio(
-                    aspectRatio: 1,
-                    child: Image.asset(
-                      product['ImagePath'] ?? 'images/default_food.png',
-                      fit: BoxFit.cover,
-                    ),
+                    aspectRatio: 1, // Tỉ lệ 1:1 (hình vuông)
+                    child: product['ImagePath'] != null && product['ImagePath'].toString().isNotEmpty
+                      ? Image.network(
+                          product['ImagePath'],
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[300],
+                              child: Icon(Icons.image_not_supported, size: 40, color: Colors.grey[600]),
+                            );
+                          },
+                        )
+                      : Container(
+                          color: Colors.grey[300],
+                          child: Icon(Icons.image_not_supported, size: 40, color: Colors.grey[600]),
+                        ),
                   ),
                 ),
                 if (discount > 0)
@@ -207,8 +242,7 @@ class ShopeeStyleProductCard extends StatelessWidget {
                     top: 0,
                     right: 0,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: const BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.only(
@@ -288,4 +322,11 @@ class ShopeeStyleProductCard extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
 

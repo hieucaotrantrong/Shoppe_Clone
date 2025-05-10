@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, File;
 
 class ApiService {
   // Chọn baseUrl phù hợp dựa trên nền tảng
@@ -143,7 +143,7 @@ class ApiService {
         'total_amount': totalAmount,
         'items': formattedItems,
       };
-      
+
       print('Order request body: ${json.encode(requestBody)}');
 
       final response = await http
@@ -392,8 +392,9 @@ class ApiService {
   }
 
   // Cập nhật người dùng (cho admin)
-  static Future<Map<String, dynamic>?> updateUser(String userId, String name,
-      String email, String? password, String role) async {
+  static Future<Map<String, dynamic>?> updateUser(
+      String userId, String name, String email, String? password, String role,
+      {String? profileImage}) async {
     try {
       final Map<String, dynamic> userData = {
         'name': name,
@@ -485,7 +486,104 @@ class ApiService {
       return [];
     }
   }
+
+  // Upload ảnh đại diện
+  static Future<String?> uploadProfileImage(String userId, File imageFile) async {
+    try {
+      // Tạo request multipart
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/upload-profile-image'),
+      );
+      
+      // Thêm file ảnh vào request
+      request.files.add(await http.MultipartFile.fromPath(
+        'image',
+        imageFile.path,
+      ));
+      
+      // Thêm userId vào request
+      request.fields['user_id'] = userId;
+      
+      print('Sending profile image upload request to: ${request.url}');
+      print('With user ID: $userId');
+      print('Image path: ${imageFile.path}');
+      
+      // Gửi request
+      var streamedResponse = await request.send().timeout(requestTimeout);
+      
+      // Đọc response
+      var response = await http.Response.fromStream(streamedResponse);
+      print('Upload response status: ${response.statusCode}');
+      print('Upload response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        var jsonData = json.decode(response.body);
+        if (jsonData['status'] == 'success') {
+          print('Upload successful: ${jsonData['image_url']}');
+          return jsonData['image_url'];
+        } else {
+          print('Upload failed: ${jsonData['message']}');
+          return null;
+        }
+      } else {
+        print('Upload failed with status: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error uploading profile image: $e');
+      return null;
+    }
+  }
+
+  // Cập nhật thông tin cá nhân (cho người dùng)
+  static Future<Map<String, dynamic>?> updateUserProfile(
+    String userId,
+    String name,
+    String email,
+    String? password, {
+    String? profileImage,
+  }) async {
+    try {
+      final Map<String, dynamic> userData = {
+        'name': name,
+        'email': email,
+      };
+
+      // Chỉ thêm mật khẩu nếu được cung cấp
+      if (password != null && password.isNotEmpty) {
+        userData['password'] = password;
+      }
+
+      // Thêm ảnh đại diện nếu được cung cấp
+      if (profileImage != null) {
+        userData['profile_image'] = profileImage;
+      }
+
+      // Sử dụng endpoint /api/users/:id thay vì /api/users/profile/:id
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl/users/$userId'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(userData),
+          )
+          .timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        print('Profile update failed: ${response.statusCode}');
+        print('Response: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error updating profile: $e');
+      return null;
+    }
+  }
 }
+
+
 
 
 
