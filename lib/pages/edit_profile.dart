@@ -1,10 +1,14 @@
 import 'dart:io';
+import 'dart:typed_data'; // Thêm import này cho Uint8List
 import 'package:flutter/material.dart';
 import 'package:food_app/services/shared_pref.dart';
 import 'package:food_app/services/api_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class EditProfile extends StatefulWidget {
   const EditProfile({super.key});
@@ -21,6 +25,8 @@ class _EditProfileState extends State<EditProfile> {
   String? userId, profileImage;
   File? _imageFile;
   bool _isLoading = false;
+  Uint8List? _webImageBytes;
+  String? _webImageName;
 
   @override
   void initState() {
@@ -120,11 +126,24 @@ class _EditProfileState extends State<EditProfile> {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.image,
       );
-      
+
       if (result != null) {
-        setState(() {
-          _imageFile = File(result.files.single.path!);
-        });
+        if (kIsWeb) {
+          // Xử lý cho web - KHÔNG tạo File object
+          print("File picked on web: ${result.files.single.name}");
+          setState(() {
+            _imageFile = null; // Không sử dụng File trên web
+            _webImageBytes = result.files.single.bytes;
+            _webImageName = result.files.single.name;
+          });
+        } else {
+          // Xử lý cho mobile
+          setState(() {
+            _imageFile = File(result.files.single.path!);
+            _webImageBytes = null;
+            _webImageName = null;
+          });
+        }
       }
     } catch (e) {
       print("Error getting file from computer: $e");
@@ -147,17 +166,30 @@ class _EditProfileState extends State<EditProfile> {
 
     try {
       String? newProfileImageUrl;
-      
+
       // Upload ảnh mới nếu người dùng đã chọn ảnh
-      if (_imageFile != null) {
-        newProfileImageUrl = await ApiService.uploadProfileImage(userId!, _imageFile!);
+      if (_imageFile != null || _webImageBytes != null) {
+        if (kIsWeb && _webImageBytes != null) {
+          // Upload ảnh trên web
+          print("Uploading web image: ${_webImageName}");
+          newProfileImageUrl = await ApiService.uploadProfileImageWeb(
+              userId!, _webImageBytes!, _webImageName ?? "profile_image.jpg");
+        } else if (!kIsWeb && _imageFile != null) {
+          // Upload ảnh trên mobile
+          print("Uploading mobile image: ${_imageFile!.path}");
+          newProfileImageUrl =
+              await ApiService.uploadProfileImage(userId!, _imageFile!);
+        }
+
         if (newProfileImageUrl == null) {
-          // Hiển thị thông báo lỗi nếu upload ảnh thất bại
+          print("Failed to upload profile image");
           Fluttertoast.showToast(
             msg: "Không thể tải lên ảnh đại diện",
             toastLength: Toast.LENGTH_SHORT,
             gravity: ToastGravity.BOTTOM,
           );
+        } else {
+          print("Profile image uploaded successfully: $newProfileImageUrl");
         }
       }
 
@@ -203,10 +235,11 @@ class _EditProfileState extends State<EditProfile> {
         );
       }
     } catch (e) {
+      print("Error updating profile: $e");
       setState(() {
         _isLoading = false;
       });
-      
+
       Fluttertoast.showToast(
         msg: "Đã xảy ra lỗi: $e",
         toastLength: Toast.LENGTH_SHORT,
@@ -234,12 +267,8 @@ class _EditProfileState extends State<EditProfile> {
                     CircleAvatar(
                       radius: 60,
                       backgroundColor: Colors.grey[300],
-                      backgroundImage: _imageFile != null
-                          ? FileImage(_imageFile!)
-                          : (profileImage != null && profileImage!.isNotEmpty
-                              ? NetworkImage(profileImage!)
-                              : null),
-                      child: (profileImage == null || profileImage!.isEmpty) && _imageFile == null
+                      backgroundImage: _getProfileImage(),
+                      child: _shouldShowDefaultIcon()
                           ? Icon(Icons.person, size: 60, color: Colors.grey[700])
                           : null,
                     ),
@@ -273,7 +302,8 @@ class _EditProfileState extends State<EditProfile> {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your email';
                         }
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                            .hasMatch(value)) {
                           return 'Please enter a valid email';
                         }
                         return null;
@@ -305,6 +335,33 @@ class _EditProfileState extends State<EditProfile> {
     );
   }
 
+  // Phương thức mới để xác định xem có hiển thị icon mặc định không
+  bool _shouldShowDefaultIcon() {
+    if (kIsWeb) {
+      return (profileImage == null || profileImage!.isEmpty) && _webImageBytes == null;
+    } else {
+      return (profileImage == null || profileImage!.isEmpty) && _imageFile == null;
+    }
+  }
+
+  // Phương thức mới để lấy ảnh đại diện
+  ImageProvider? _getProfileImage() {
+    if (kIsWeb) {
+      if (_webImageBytes != null) {
+        return MemoryImage(_webImageBytes!);
+      } else if (profileImage != null && profileImage!.isNotEmpty) {
+        return NetworkImage(profileImage!);
+      }
+    } else {
+      if (_imageFile != null) {
+        return FileImage(_imageFile!);
+      } else if (profileImage != null && profileImage!.isNotEmpty) {
+        return NetworkImage(profileImage!);
+      }
+    }
+    return null;
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -313,10 +370,6 @@ class _EditProfileState extends State<EditProfile> {
     super.dispose();
   }
 }
-
-
-
-
 
 
 

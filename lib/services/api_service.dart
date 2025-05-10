@@ -1,7 +1,9 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'dart:typed_data'; // Thêm import này cho Uint8List
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' show Platform, File;
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   // Chọn baseUrl phù hợp dựa trên nền tảng
@@ -487,9 +489,76 @@ class ApiService {
     }
   }
 
+  // Kiểm tra xem ứng dụng đang chạy trên web hay không
+  static bool get isWeb => kIsWeb;
+
+  // Upload ảnh đại diện (phiên bản web)
+  static Future<String?> uploadProfileImageWeb(String userId, Uint8List imageBytes, String fileName) async {
+    try {
+      print("Starting web profile image upload for user ID: $userId");
+      print("Image file name: $fileName");
+      print("Image size: ${imageBytes.length} bytes");
+      
+      // Tạo request multipart
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/upload-profile-image'),
+      );
+      
+      // Thêm file ảnh vào request (dạng bytes cho web)
+      var multipartFile = http.MultipartFile.fromBytes(
+        'image',
+        imageBytes,
+        filename: fileName,
+        contentType: MediaType('image', fileName.split('.').last),
+      );
+      request.files.add(multipartFile);
+      
+      // Thêm userId vào request
+      request.fields['user_id'] = userId;
+      
+      print('Sending web profile image upload request to: ${request.url}');
+      
+      // Gửi request
+      var streamedResponse = await request.send().timeout(Duration(minutes: 2));
+      
+      // Đọc response
+      var response = await http.Response.fromStream(streamedResponse);
+      print('Upload response status: ${response.statusCode}');
+      print('Upload response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        var jsonData = json.decode(response.body);
+        if (jsonData['status'] == 'success') {
+          print('Upload successful: ${jsonData['image_url']}');
+          return jsonData['image_url'];
+        } else {
+          print('Upload failed: ${jsonData['message']}');
+          return null;
+        }
+      } else {
+        print('Upload failed with status: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error uploading profile image on web: $e');
+      return null;
+    }
+  }
+
   // Upload ảnh đại diện
   static Future<String?> uploadProfileImage(String userId, File imageFile) async {
     try {
+      // Kiểm tra xem file có tồn tại không
+      if (!await imageFile.exists()) {
+        print("Image file does not exist: ${imageFile.path}");
+        return null;
+      }
+      
+      print("Starting profile image upload for user ID: $userId");
+      print("Image file path: ${imageFile.path}");
+      print("Image file size: ${await imageFile.length()} bytes");
+      
       // Tạo request multipart
       var request = http.MultipartRequest(
         'POST',
@@ -497,20 +566,22 @@ class ApiService {
       );
       
       // Thêm file ảnh vào request
-      request.files.add(await http.MultipartFile.fromPath(
+      var multipartFile = await http.MultipartFile.fromPath(
         'image',
         imageFile.path,
-      ));
+      );
+      request.files.add(multipartFile);
       
       // Thêm userId vào request
       request.fields['user_id'] = userId;
       
       print('Sending profile image upload request to: ${request.url}');
       print('With user ID: $userId');
-      print('Image path: ${imageFile.path}');
+      print('Image file name: ${multipartFile.filename}');
+      print('Image content type: ${multipartFile.contentType}');
       
-      // Gửi request
-      var streamedResponse = await request.send().timeout(requestTimeout);
+      // Gửi request với timeout dài hơn cho upload file
+      var streamedResponse = await request.send().timeout(Duration(minutes: 2));
       
       // Đọc response
       var response = await http.Response.fromStream(streamedResponse);
@@ -582,6 +653,11 @@ class ApiService {
     }
   }
 }
+
+
+
+
+
 
 
 
