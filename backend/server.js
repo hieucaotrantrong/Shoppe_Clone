@@ -283,10 +283,10 @@ app.post('/api/orders', async (req, res) => {
 
         const quantity = parseInt(item.quantity) || 1;
         const price = parseFloat(item.price) || 0;
-        
+
         // Lấy tên sản phẩm từ request
         const productName = item.name;
-        
+
         console.log(`Adding item to order #${orderId}:`, {
           product_id: productId,
           name: productName,
@@ -297,13 +297,13 @@ app.post('/api/orders', async (req, res) => {
         // Kiểm tra xem tên sản phẩm có null không
         if (!productName) {
           console.warn(`Warning: Product name is null for product_id ${productId}`);
-          
+
           // Nếu tên sản phẩm null, thử lấy từ bảng products
           const [products] = await connection.query(
             'SELECT name FROM products WHERE id = ?',
             [productId]
           );
-          
+
           if (products.length > 0 && products[0].name) {
             console.log(`Found product name from database: ${products[0].name}`);
             await connection.query(
@@ -512,9 +512,9 @@ app.put('/api/orders/:id/status', async (req, res) => {
     // Kiểm tra trạng thái hợp lệ - đảm bảo khớp với ENUM trong database
     const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ 
-        status: 'error', 
-        message: `Invalid status. Valid values are: ${validStatuses.join(', ')}` 
+      return res.status(400).json({
+        status: 'error',
+        message: `Invalid status. Valid values are: ${validStatuses.join(', ')}`
       });
     }
 
@@ -525,15 +525,15 @@ app.put('/api/orders/:id/status', async (req, res) => {
     }
 
     const order = orders[0];
-    
+
     // Lấy thông tin chi tiết đơn hàng để hiển thị tên sản phẩm
     const [orderItems] = await pool.query(`
       SELECT * FROM order_items WHERE order_id = ?
     `, [orderId]);
-    
+
     // Tạo danh sách tên sản phẩm
     const productNames = orderItems.map(item => item.name || `Sản phẩm #${item.product_id}`);
-    
+
     // Giới hạn số lượng sản phẩm hiển thị nếu quá nhiều
     let productText = '';
     if (productNames.length > 0) {
@@ -543,7 +543,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
         productText = `${productNames[0]}, ${productNames[1]} và ${productNames.length - 2} sản phẩm khác`;
       }
     }
-    
+
     // Cập nhật trạng thái
     await pool.query(
       'UPDATE orders SET status = ? WHERE id = ?',
@@ -626,10 +626,10 @@ app.post('/api/orders', async (req, res) => {
 
         const quantity = parseInt(item.quantity) || 1;
         const price = parseFloat(item.price) || 0;
-        
+
         // Lấy tên sản phẩm từ request
         const productName = item.name;
-        
+
         console.log(`Adding item to order #${orderId}:`, {
           product_id: productId,
           name: productName,
@@ -640,13 +640,13 @@ app.post('/api/orders', async (req, res) => {
         // Kiểm tra xem tên sản phẩm có null không
         if (!productName) {
           console.warn(`Warning: Product name is null for product_id ${productId}`);
-          
+
           // Nếu tên sản phẩm null, thử lấy từ bảng products
           const [products] = await connection.query(
             'SELECT name FROM products WHERE id = ?',
             [productId]
           );
-          
+
           if (products.length > 0 && products[0].name) {
             console.log(`Found product name from database: ${products[0].name}`);
             await connection.query(
@@ -1362,10 +1362,10 @@ app.post('/api/orders', async (req, res) => {
 
         const quantity = parseInt(item.quantity) || 1;
         const price = parseFloat(item.price) || 0;
-        
+
         // Lấy tên sản phẩm từ request
         const productName = item.name;
-        
+
         console.log(`Adding item to order #${orderId}:`, {
           product_id: productId,
           name: productName,
@@ -1376,13 +1376,13 @@ app.post('/api/orders', async (req, res) => {
         // Kiểm tra xem tên sản phẩm có null không
         if (!productName) {
           console.warn(`Warning: Product name is null for product_id ${productId}`);
-          
+
           // Nếu tên sản phẩm null, thử lấy từ bảng products
           const [products] = await connection.query(
             'SELECT name FROM products WHERE id = ?',
             [productId]
           );
-          
+
           if (products.length > 0 && products[0].name) {
             console.log(`Found product name from database: ${products[0].name}`);
             await connection.query(
@@ -1704,7 +1704,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // Giới hạn 5MB
   fileFilter: function (req, file, cb) {
@@ -1749,7 +1749,7 @@ app.post('/api/upload-profile-image', upload.single('image'), async (req, res) =
 
     // Đường dẫn tương đối đến file ảnh
     const relativePath = '/uploads/profile_images/' + req.file.filename;
-    
+
     // Cập nhật đường dẫn ảnh đại diện trong cơ sở dữ liệu
     await pool.query(
       'UPDATE users SET profile_image = ? WHERE id = ?',
@@ -1758,7 +1758,7 @@ app.post('/api/upload-profile-image', upload.single('image'), async (req, res) =
 
     // Trả về đường dẫn đầy đủ đến ảnh
     const fullUrl = req.protocol + '://' + req.get('host') + relativePath;
-    
+
     res.json({
       status: 'success',
       message: 'Profile image uploaded successfully',
@@ -1777,7 +1777,7 @@ app.post('/api/upload-profile-image', upload.single('image'), async (req, res) =
 app.get('/api/users/:userId/notifications', async (req, res) => {
   try {
     const userId = req.params.userId;
-    
+
     // Kiểm tra userId
     if (!userId) {
       return res.status(400).json({ status: 'error', message: 'User ID is required' });
@@ -1808,7 +1808,7 @@ app.get('/api/users/:userId/notifications', async (req, res) => {
 app.put('/api/notifications/:id/read', async (req, res) => {
   try {
     const notificationId = req.params.id;
-    
+
     // Cập nhật trạng thái đã đọc
     await pool.query(
       'UPDATE notifications SET is_read = 1 WHERE id = ?',
@@ -1829,7 +1829,7 @@ app.put('/api/notifications/:id/read', async (req, res) => {
 app.put('/api/users/:userId/notifications/read-all', async (req, res) => {
   try {
     const userId = req.params.userId;
-    
+
     // Cập nhật tất cả thông báo của người dùng thành đã đọc
     await pool.query(
       'UPDATE notifications SET is_read = 1 WHERE user_id = ?',
@@ -1850,7 +1850,7 @@ app.put('/api/users/:userId/notifications/read-all', async (req, res) => {
 app.get('/api/users/:userId/notifications', async (req, res) => {
   try {
     const userId = req.params.userId;
-    
+
     // Kiểm tra userId
     if (!userId) {
       return res.status(400).json({ status: 'error', message: 'User ID is required' });
@@ -1881,7 +1881,7 @@ app.get('/api/users/:userId/notifications', async (req, res) => {
 app.put('/api/notifications/:id/read', async (req, res) => {
   try {
     const notificationId = req.params.id;
-    
+
     // Cập nhật trạng thái đã đọc
     await pool.query(
       'UPDATE notifications SET is_read = 1 WHERE id = ?',
@@ -1902,7 +1902,7 @@ app.put('/api/notifications/:id/read', async (req, res) => {
 app.put('/api/users/:userId/notifications/read-all', async (req, res) => {
   try {
     const userId = req.params.userId;
-    
+
     // Cập nhật tất cả thông báo của người dùng thành đã đọc
     await pool.query(
       'UPDATE notifications SET is_read = 1 WHERE user_id = ?',
@@ -1918,7 +1918,3 @@ app.put('/api/users/:userId/notifications/read-all', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
-
-
-
-
