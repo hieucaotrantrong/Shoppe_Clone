@@ -503,27 +503,82 @@ app.put('/api/orders/:id/status', async (req, res) => {
     const orderId = req.params.id;
 
     console.log(`Updating order #${orderId} status to: ${status}`);
+    console.log('Request body:', req.body);
 
     if (!status) {
       return res.status(400).json({ status: 'error', message: 'Status is required' });
     }
 
-    // Kiểm tra trạng thái hợp lệ
+    // Kiểm tra trạng thái hợp lệ - đảm bảo khớp với ENUM trong database
     const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ status: 'error', message: 'Invalid status' });
+      return res.status(400).json({ 
+        status: 'error', 
+        message: `Invalid status. Valid values are: ${validStatuses.join(', ')}` 
+      });
     }
 
-    const [result] = await pool.query(
+    // Kiểm tra xem đơn hàng có tồn tại không
+    const [orders] = await pool.query('SELECT * FROM orders WHERE id = ?', [orderId]);
+    if (orders.length === 0) {
+      return res.status(404).json({ status: 'error', message: 'Order not found' });
+    }
+
+    const order = orders[0];
+    
+    // Lấy thông tin chi tiết đơn hàng để hiển thị tên sản phẩm
+    const [orderItems] = await pool.query(`
+      SELECT * FROM order_items WHERE order_id = ?
+    `, [orderId]);
+    
+    // Tạo danh sách tên sản phẩm
+    const productNames = orderItems.map(item => item.name || `Sản phẩm #${item.product_id}`);
+    
+    // Giới hạn số lượng sản phẩm hiển thị nếu quá nhiều
+    let productText = '';
+    if (productNames.length > 0) {
+      if (productNames.length <= 2) {
+        productText = productNames.join(', ');
+      } else {
+        productText = `${productNames[0]}, ${productNames[1]} và ${productNames.length - 2} sản phẩm khác`;
+      }
+    }
+    
+    // Cập nhật trạng thái
+    await pool.query(
       'UPDATE orders SET status = ? WHERE id = ?',
       [status, orderId]
     );
 
-    console.log('Update result:', result);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ status: 'error', message: 'Order not found' });
+    // Tạo thông báo cho người dùng về việc cập nhật trạng thái đơn hàng
+    let title, message;
+    switch (status) {
+      case 'processing':
+        title = 'Đơn hàng đang được xử lý';
+        message = `Đơn hàng ${productText} của bạn đang được nhà hàng xử lý.`;
+        break;
+      case 'shipped':
+        title = 'Đơn hàng đang được giao';
+        message = `Đơn hàng ${productText} của bạn đang được giao đến bạn.`;
+        break;
+      case 'delivered':
+        title = 'Đơn hàng đã giao thành công';
+        message = `Đơn hàng ${productText} của bạn đã được giao thành công. Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!`;
+        break;
+      case 'cancelled':
+        title = 'Đơn hàng đã bị hủy';
+        message = `Đơn hàng ${productText} của bạn đã bị hủy.`;
+        break;
+      default:
+        title = 'Cập nhật trạng thái đơn hàng';
+        message = `Đơn hàng ${productText} của bạn đã được cập nhật sang trạng thái ${status}.`;
     }
+
+    // Thêm thông báo vào database với cấu trúc bảng hiện tại
+    await pool.query(
+      'INSERT INTO notifications (user_id, title, message, is_read) VALUES (?, ?, ?, ?)',
+      [order.user_id, title, message, 0]
+    );
 
     res.json({
       status: 'success',
@@ -532,7 +587,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating order status:', error);
-    res.status(500).json({ status: 'error', message: 'Internal server error' });
+    res.status(500).json({ status: 'error', message: error.message || 'Internal server error' });
   }
 });
 
@@ -1717,6 +1772,153 @@ app.post('/api/upload-profile-image', upload.single('image'), async (req, res) =
     });
   }
 });
+
+// API lấy thông báo của người dùng
+app.get('/api/users/:userId/notifications', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    // Kiểm tra userId
+    if (!userId) {
+      return res.status(400).json({ status: 'error', message: 'User ID is required' });
+    }
+
+    // Lấy thông báo từ database
+    const [notifications] = await pool.query(
+      `SELECT id, user_id, title, message, is_read, created_at 
+       FROM notifications 
+       WHERE user_id = ? 
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    console.log(`Found ${notifications.length} notifications for user ${userId}`);
+
+    res.json({
+      status: 'success',
+      data: notifications
+    });
+  } catch (error) {
+    console.error('Error fetching user notifications:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// API đánh dấu thông báo đã đọc
+app.put('/api/notifications/:id/read', async (req, res) => {
+  try {
+    const notificationId = req.params.id;
+    
+    // Cập nhật trạng thái đã đọc
+    await pool.query(
+      'UPDATE notifications SET is_read = 1 WHERE id = ?',
+      [notificationId]
+    );
+
+    res.json({
+      status: 'success',
+      message: 'Notification marked as read'
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// API đánh dấu tất cả thông báo của người dùng đã đọc
+app.put('/api/users/:userId/notifications/read-all', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    // Cập nhật tất cả thông báo của người dùng thành đã đọc
+    await pool.query(
+      'UPDATE notifications SET is_read = 1 WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({
+      status: 'success',
+      message: 'All notifications marked as read'
+    });
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// API lấy thông báo của người dùng
+app.get('/api/users/:userId/notifications', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    // Kiểm tra userId
+    if (!userId) {
+      return res.status(400).json({ status: 'error', message: 'User ID is required' });
+    }
+
+    // Lấy thông báo từ database
+    const [notifications] = await pool.query(
+      `SELECT id, user_id, title, message, is_read, created_at 
+       FROM notifications 
+       WHERE user_id = ? 
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    console.log(`Found ${notifications.length} notifications for user ${userId}`);
+
+    res.json({
+      status: 'success',
+      data: notifications
+    });
+  } catch (error) {
+    console.error('Error fetching user notifications:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// API đánh dấu thông báo đã đọc
+app.put('/api/notifications/:id/read', async (req, res) => {
+  try {
+    const notificationId = req.params.id;
+    
+    // Cập nhật trạng thái đã đọc
+    await pool.query(
+      'UPDATE notifications SET is_read = 1 WHERE id = ?',
+      [notificationId]
+    );
+
+    res.json({
+      status: 'success',
+      message: 'Notification marked as read'
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// API đánh dấu tất cả thông báo của người dùng đã đọc
+app.put('/api/users/:userId/notifications/read-all', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    // Cập nhật tất cả thông báo của người dùng thành đã đọc
+    await pool.query(
+      'UPDATE notifications SET is_read = 1 WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({
+      status: 'success',
+      message: 'All notifications marked as read'
+    });
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 
 
 

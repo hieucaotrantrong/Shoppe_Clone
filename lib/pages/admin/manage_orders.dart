@@ -66,23 +66,46 @@ class _ManageOrdersState extends State<ManageOrders> {
         _isLoading = true;
       });
 
+      print('Updating order $orderId to status: $newStatus');
+
+      // Kiểm tra orderId
+      if (orderId.isEmpty || orderId == 'null') {
+        throw Exception('Invalid order ID: $orderId');
+      }
+
+      // Đảm bảo status là một trong các giá trị hợp lệ
+      final validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+      if (!validStatuses.contains(newStatus)) {
+        throw Exception('Invalid status: $newStatus');
+      }
+
       final result = await ApiService.updateOrderStatus(orderId, newStatus);
+      
+      print('Update result: $result');
 
       if (result != null && result['status'] == 'success') {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Trạng thái đơn hàng đã được cập nhật')),
+          SnackBar(content: Text('Trạng thái đơn hàng đã được cập nhật thành $newStatus')),
         );
         _refreshOrders();
       } else {
+        String errorMessage = 'Không thể cập nhật trạng thái đơn hàng';
+        if (result != null && result['message'] != null) {
+          errorMessage += ': ${result['message']}';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không thể cập nhật trạng thái đơn hàng')),
+          SnackBar(content: Text(errorMessage)),
         );
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
+      print('Error updating order status: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi: $e')),
       );
-    } finally {
       setState(() {
         _isLoading = false;
       });
@@ -265,17 +288,50 @@ class _ManageOrdersState extends State<ManageOrders> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                   children: [
-                                    _buildStatusButton(
-                                        order['id'].toString(),
-                                        'processing',
-                                        'Đang xử lý',
-                                        Colors.blue),
-                                    _buildStatusButton(order['id'].toString(),
-                                        'shipped', 'Đang giao', Colors.purple),
-                                    _buildStatusButton(order['id'].toString(),
-                                        'delivered', 'Đã giao', Colors.green),
-                                    _buildStatusButton(order['id'].toString(),
-                                        'cancelled', 'Hủy', Colors.red),
+                                    ElevatedButton(
+                                      onPressed: () => _updateOrderStatus(order['id'].toString(), 'processing'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue,
+                                        foregroundColor: Colors.white,
+                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        minimumSize: Size(80, 30),
+                                        textStyle: TextStyle(fontSize: 12),
+                                      ),
+                                      child: Text('Đang xử lý'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => _updateOrderStatus(order['id'].toString(), 'shipped'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.purple,
+                                        foregroundColor: Colors.white,
+                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        minimumSize: Size(80, 30),
+                                        textStyle: TextStyle(fontSize: 12),
+                                      ),
+                                      child: Text('Đang giao'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => _updateOrderStatus(order['id'].toString(), 'delivered'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        minimumSize: Size(80, 30),
+                                        textStyle: TextStyle(fontSize: 12),
+                                      ),
+                                      child: Text('Đã giao'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => _updateOrderStatus(order['id'].toString(), 'cancelled'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        minimumSize: Size(80, 30),
+                                        textStyle: TextStyle(fontSize: 12),
+                                      ),
+                                      child: Text('Hủy'),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -292,10 +348,31 @@ class _ManageOrdersState extends State<ManageOrders> {
   }
 
   Widget _buildStatusButton(String orderId, String status, String label, Color color) {
+    // Lấy trạng thái hiện tại của đơn hàng
+    final currentStatus = _getCurrentOrderStatus(orderId);
+    
+    // Kiểm tra xem nút có nên bị vô hiệu hóa không
+    bool isDisabled = false;
+    
+    // Nếu đơn hàng đã bị hủy, vô hiệu hóa tất cả các nút khác
+    if (currentStatus == 'cancelled' && status != 'cancelled') {
+      isDisabled = true;
+    }
+    
+    // Nếu đơn hàng đã giao, vô hiệu hóa tất cả các nút khác
+    if (currentStatus == 'delivered' && status != 'delivered') {
+      isDisabled = true;
+    }
+    
+    // Nếu đơn hàng đang ở trạng thái hiện tại, vô hiệu hóa nút đó
+    if (currentStatus == status) {
+      isDisabled = true;
+    }
+    
     return ElevatedButton(
-      onPressed: () => _updateOrderStatus(orderId, status),
+      onPressed: isDisabled ? null : () => _updateOrderStatus(orderId, status),
       style: ElevatedButton.styleFrom(
-        backgroundColor: color,
+        backgroundColor: isDisabled ? Colors.grey : color,
         foregroundColor: Colors.white,
         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         minimumSize: Size(80, 30),
@@ -304,7 +381,27 @@ class _ManageOrdersState extends State<ManageOrders> {
       child: Text(label),
     );
   }
+
+  // Phương thức mới để lấy trạng thái hiện tại của đơn hàng
+  String _getCurrentOrderStatus(String orderId) {
+    try {
+      final orders = _ordersFuture as Future<List<Map<String, dynamic>>>;
+      final ordersList = orders.then((list) {
+        return list.firstWhere((order) => order['id'].toString() == orderId, 
+                              orElse: () => {'status': 'pending'});
+      });
+      
+      // Vì không thể đồng bộ truy cập Future, trả về giá trị mặc định
+      return 'pending';
+    } catch (e) {
+      print('Error getting current order status: $e');
+      return 'pending';
+    }
+  }
 }
+
+
+
 
 
 

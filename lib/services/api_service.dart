@@ -290,14 +290,32 @@ class ApiService {
   static Future<Map<String, dynamic>?> updateOrderStatus(
       String orderId, String status) async {
     try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/orders/$orderId/status'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'status': status}),
-      );
+      // Sử dụng baseUrl thay vì getBaseUrl()
+      print('Using baseUrl: $baseUrl');
+
+      final url = '$baseUrl/orders/$orderId/status';
+      print('API URL: $url');
+      print('Updating order status: orderId=$orderId, status=$status');
+
+      // Đảm bảo body đúng định dạng
+      final body = json.encode({'status': status});
+      print('Request body: $body');
+
+      final response = await http
+          .put(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: body,
+          )
+          .timeout(const Duration(seconds: 30));
+
+      print('API response status code: ${response.statusCode}');
+      print('API response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        final result = json.decode(response.body);
+        print('Successfully updated order status: $result');
+        return result;
       } else {
         print('Order status update failed: ${response.statusCode}');
         print('Response: ${response.body}');
@@ -493,18 +511,19 @@ class ApiService {
   static bool get isWeb => kIsWeb;
 
   // Upload ảnh đại diện (phiên bản web)
-  static Future<String?> uploadProfileImageWeb(String userId, Uint8List imageBytes, String fileName) async {
+  static Future<String?> uploadProfileImageWeb(
+      String userId, Uint8List imageBytes, String fileName) async {
     try {
       print("Starting web profile image upload for user ID: $userId");
       print("Image file name: $fileName");
       print("Image size: ${imageBytes.length} bytes");
-      
+
       // Tạo request multipart
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/upload-profile-image'),
       );
-      
+
       // Thêm file ảnh vào request (dạng bytes cho web)
       var multipartFile = http.MultipartFile.fromBytes(
         'image',
@@ -513,20 +532,20 @@ class ApiService {
         contentType: MediaType('image', fileName.split('.').last),
       );
       request.files.add(multipartFile);
-      
+
       // Thêm userId vào request
       request.fields['user_id'] = userId;
-      
+
       print('Sending web profile image upload request to: ${request.url}');
-      
+
       // Gửi request
       var streamedResponse = await request.send().timeout(Duration(minutes: 2));
-      
+
       // Đọc response
       var response = await http.Response.fromStream(streamedResponse);
       print('Upload response status: ${response.statusCode}');
       print('Upload response body: ${response.body}');
-      
+
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
         if (jsonData['status'] == 'success') {
@@ -547,47 +566,48 @@ class ApiService {
   }
 
   // Upload ảnh đại diện
-  static Future<String?> uploadProfileImage(String userId, File imageFile) async {
+  static Future<String?> uploadProfileImage(
+      String userId, File imageFile) async {
     try {
       // Kiểm tra xem file có tồn tại không
       if (!await imageFile.exists()) {
         print("Image file does not exist: ${imageFile.path}");
         return null;
       }
-      
+
       print("Starting profile image upload for user ID: $userId");
       print("Image file path: ${imageFile.path}");
       print("Image file size: ${await imageFile.length()} bytes");
-      
+
       // Tạo request multipart
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/upload-profile-image'),
       );
-      
+
       // Thêm file ảnh vào request
       var multipartFile = await http.MultipartFile.fromPath(
         'image',
         imageFile.path,
       );
       request.files.add(multipartFile);
-      
+
       // Thêm userId vào request
       request.fields['user_id'] = userId;
-      
+
       print('Sending profile image upload request to: ${request.url}');
       print('With user ID: $userId');
       print('Image file name: ${multipartFile.filename}');
       print('Image content type: ${multipartFile.contentType}');
-      
+
       // Gửi request với timeout dài hơn cho upload file
       var streamedResponse = await request.send().timeout(Duration(minutes: 2));
-      
+
       // Đọc response
       var response = await http.Response.fromStream(streamedResponse);
       print('Upload response status: ${response.statusCode}');
       print('Upload response body: ${response.body}');
-      
+
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
         if (jsonData['status'] == 'success') {
@@ -652,16 +672,50 @@ class ApiService {
       return null;
     }
   }
+
+  // Lấy thông báo của người dùng
+  static Future<List<Map<String, dynamic>>> getUserNotifications(String userId) async {
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/users/$userId/notifications'))
+          .timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'success') {
+          final List<dynamic> notificationsJson = data['data'];
+          return notificationsJson.map((json) => json as Map<String, dynamic>).toList();
+        } else {
+          print('API returned error: ${data['message']}');
+          return [];
+        }
+      } else {
+        print('Failed to load notifications: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('Error getting notifications: $e');
+      return [];
+    }
+  }
+
+  // Đánh dấu thông báo đã đọc
+  static Future<bool> markNotificationAsRead(String notificationId) async {
+    try {
+      final response = await http
+          .put(Uri.parse('$baseUrl/notifications/$notificationId/read'))
+          .timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        print('Failed to mark notification as read: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('Error marking notification as read: $e');
+      return false;
+    }
+  }
 }
-
-
-
-
-
-
-
-
-
-
-
 

@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:food_app/pages/login.dart';
 import 'package:food_app/providers/cart_provider.dart';
+import 'package:food_app/providers/notification_provider.dart';
 import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ChangeNotifierProvider(create: (context) => CartProvider(), child: MyApp()),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        // Các providers khác nếu có
+      ],
+      child: MyApp(),
+    ),
   );
 }
 
@@ -26,3 +34,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
