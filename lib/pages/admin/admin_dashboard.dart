@@ -4,6 +4,7 @@ import 'package:food_app/pages/login.dart';
 import 'package:food_app/services/shared_pref.dart';
 import 'package:food_app/pages/admin/manage_orders.dart';
 import 'package:food_app/pages/admin/manage_users.dart';
+import 'package:food_app/pages/admin/admin_chat_list.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({Key? key}) : super(key: key);
@@ -192,11 +193,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
           },
         ),
         _buildDashboardCard(
-          "Hỗ Trợ",
+          "Demo",
           Icons.bar_chart,
           Colors.purple,
           () {},
         ),
+        _buildChatButton(context),
       ],
     );
   }
@@ -243,6 +245,44 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatButton(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AdminChatList()),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.chat,
+                size: 48,
+                color: Color(0xFFff5722),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Hỗ Trợ',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
         ),
       ),

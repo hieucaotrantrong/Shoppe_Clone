@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:food_app/pages/order.dart';
+import 'package:food_app/pages/chat_page.dart';
 import 'package:food_app/providers/cart_provider.dart';
 
 class HeaderSection extends StatelessWidget {
@@ -49,20 +50,49 @@ class HeaderSection extends StatelessWidget {
           children: [
             Text(
               "Hello, ${userName ?? 'User'}",
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: const Color.fromARGB(221, 226, 97, 97)),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            Text(
+            const SizedBox(height: 5),
+            const Text(
               "Chào mừng bạn đến với Shoppe",
               style: TextStyle(
-                  fontSize: 16,
-                  color: const Color.fromARGB(255, 221, 111, 111)),
+                fontSize: 14,
+                color: Colors.black54,
+              ),
             ),
           ],
         ),
-        _buildCartButton(context),
+        // Chỉ giữ lại nút messenger, xóa nút giỏ hàng
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ChatPage(),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color:
+                      const Color.fromARGB(255, 222, 211, 143).withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.message_outlined,
+                color: Colors.white, size: 28),
+          ),
+        ),
       ],
     );
   }
@@ -102,14 +132,14 @@ class HeaderSection extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => Order(cartItems: cartProvider.cartItems),
+            builder: (context) => const ChatPage(),
           ),
         );
       },
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.black87,
+          color: const Color.fromARGB(221, 227, 234, 163),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -119,37 +149,8 @@ class HeaderSection extends StatelessWidget {
             ),
           ],
         ),
-        child: Stack(
-          children: [
-            const Icon(Icons.shopping_cart_outlined,
-                color: Colors.white, size: 28),
-            if (cartProvider.cartItems.isNotEmpty)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 18,
-                    minHeight: 18,
-                  ),
-                  child: Text(
-                    cartProvider.cartItems.length.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-          ],
-        ),
+        child:
+            const Icon(Icons.message_outlined, color: Colors.white, size: 28),
       ),
     );
   }

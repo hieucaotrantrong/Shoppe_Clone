@@ -1,27 +1,35 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SharedPreferenceHelper {
-  static const String userIdKey = 'user_id';
-  static const String userNameKey = 'user_name';
-  static const String userEmailKey = 'user_email';
-  static const String userRoleKey = 'user_role';
-  static const String userProfileKey = 'user_profile';
+  static const String userIdKey = 'userId';
+  static const String userNameKey = 'userName';
+  static const String userEmailKey = 'userEmail';
+  static const String userRoleKey = 'userRole';
+  static const String userProfileKey = 'userProfile';
 
   // Lưu thông tin người dùng
-  Future<bool> saveUserData(
-      String userId, String name, String email, String role) async {
+  Future<bool> saveUserData(String userId, String userName, String userEmail, String role) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString(userIdKey, userId);
-    await prefs.setString(userNameKey, name);
-    await prefs.setString(userEmailKey, email);
+    await prefs.setString(userNameKey, userName);
+    await prefs.setString(userEmailKey, userEmail);
     await prefs.setString(userRoleKey, role);
+    
+    print('Saved user data to SharedPreferences:');
+    print('- userId: $userId');
+    print('- userName: $userName');
+    print('- userEmail: $userEmail');
+    print('- userRole: $role');
+    
     return true;
   }
 
-  // Lấy ID người dùng
+  // Lấy thông tin người dùng
   Future<String?> getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString(userIdKey);
+    String? userId = prefs.getString(userIdKey);
+    print('Retrieved userId from SharedPreferences: $userId');
+    return userId;
   }
 
   // Lấy tên người dùng
@@ -77,4 +85,5 @@ class SharedPreferenceHelper {
     return prefs.getString(userProfileKey);
   }
 }
+
 

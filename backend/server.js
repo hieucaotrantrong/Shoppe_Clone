@@ -12,11 +12,7 @@ const port = process.env.PORT || 3001;
 const saltRounds = 10; // Số vòng băm cho bcrypt
 
 // Middleware
-app.use(cors({
-  origin: '*', // Cho phép tất cả các nguồn trong quá trình phát triển
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors()); // Thêm middleware CORS
 app.use(bodyParser.json());
 
 // Thêm log chi tiết hơn
@@ -70,7 +66,6 @@ async function startServer() {
 
 startServer();
 
-// Cải thiện xử lý graceful shutdown
 let isShuttingDown = false;
 
 process.on('SIGTERM', async () => {
@@ -90,7 +85,6 @@ process.on('SIGTERM', async () => {
       process.exit(0);
     });
 
-    // Đảm bảo thoát sau 5 giây nếu server không đóng đúng cách
     setTimeout(() => {
       console.log('Forcing exit after timeout');
       process.exit(1);
@@ -555,7 +549,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
     switch (status) {
       case 'processing':
         title = 'Đơn hàng đang được xử lý';
-        message = `Đơn hàng ${productText} của bạn đang được nhà hàng xử lý.`;
+        message = `Đơn hàng ${productText} của bạn đang được  xử lý.`;
         break;
       case 'shipped':
         title = 'Đơn hàng đang được giao';
@@ -1053,125 +1047,8 @@ app.get('/api/debug/products', async (req, res) => {
   }
 });
 
-// Kiểm tra các tham chiếu đến bảng food_items
-app.get('/api/debug/check-references', async (req, res) => {
-  try {
-    const [references] = await pool.query(`
-      SELECT TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
-      FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-      WHERE REFERENCED_TABLE_NAME = 'food_items'
-      AND REFERENCED_TABLE_SCHEMA = 'food_app'
-    `);
-
-    res.json({
-      status: 'success',
-      data: {
-        references: references
-      }
-    });
-  } catch (error) {
-    console.error('Error checking references:', error);
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
-
-// API để xóa bảng food_items
-app.delete('/api/admin/drop-food-items', async (req, res) => {
-  try {
-    // Kiểm tra xem có tham chiếu nào đến food_items không
-    const [references] = await pool.query(`
-      SELECT TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME
-      FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-      WHERE REFERENCED_TABLE_NAME = 'food_items'
-      AND REFERENCED_TABLE_SCHEMA = 'food_app'
-    `);
-
-    if (references.length > 0) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Cannot drop food_items table because it has references',
-        data: { references }
-      });
-    }
-
-    // Xóa bảng food_items
-    await pool.query('DROP TABLE food_items');
-
-    res.json({
-      status: 'success',
-      message: 'food_items table dropped successfully'
-    });
-  } catch (error) {
-    console.error('Error dropping food_items table:', error);
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
 
 // API để xóa bảng food_items và tạo bảng products
-app.post('/api/admin/migrate-to-products', async (req, res) => {
-  try {
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
-
-    try {
-      // Kiểm tra xem có tham chiếu nào đến food_items không
-      const [references] = await connection.query(`
-        SELECT TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME
-        FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-        WHERE REFERENCED_TABLE_NAME = 'food_items'
-        AND REFERENCED_TABLE_SCHEMA = 'food_app'
-      `);
-
-      if (references.length > 0) {
-        await connection.rollback();
-        connection.release();
-        return res.status(400).json({
-          status: 'error',
-          message: 'Cannot drop food_items table because it has references',
-          data: { references }
-        });
-      }
-
-      // Tạo bảng products nếu chưa tồn tại
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS products (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          name VARCHAR(100) NOT NULL,
-          description TEXT,
-          price DECIMAL(10, 2) NOT NULL,
-          image_path VARCHAR(255),
-          category VARCHAR(50) NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
-      // Sao chép dữ liệu từ food_items sang products
-      await connection.query(`
-        INSERT INTO products (name, description, price, image_path, category)
-        SELECT name, description, price, image, category
-        FROM food_items
-      `);
-
-      // Xóa bảng food_items
-      await connection.query('DROP TABLE food_items');
-
-      await connection.commit();
-      connection.release();
-
-      res.json({
-        status: 'success',
-        message: 'Migration completed successfully'
-      });
-    } catch (error) {
-      await connection.rollback();
-      connection.release();
-      throw error;
-    }
-  } catch (error) {
-    console.error('Error during migration:', error);
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
 
 // API để kiểm tra và sửa thông tin sản phẩm trong đơn hàng
 app.get('/api/debug/check-products', async (req, res) => {
@@ -1846,75 +1723,122 @@ app.put('/api/users/:userId/notifications/read-all', async (req, res) => {
   }
 });
 
-// API lấy thông báo của người dùng
-app.get('/api/users/:userId/notifications', async (req, res) => {
+// API endpoints cho chat
+
+// Lấy tin nhắn chat của người dùng
+app.get('/api/chat/messages/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
-
-    // Kiểm tra userId
-    if (!userId) {
-      return res.status(400).json({ status: 'error', message: 'User ID is required' });
-    }
-
-    // Lấy thông báo từ database
-    const [notifications] = await pool.query(
-      `SELECT id, user_id, title, message, is_read, created_at 
-       FROM notifications 
+    
+    const [messages] = await pool.query(
+      `SELECT * FROM chat_messages 
        WHERE user_id = ? 
-       ORDER BY created_at DESC`,
+       ORDER BY created_at ASC`,
       [userId]
     );
-
-    console.log(`Found ${notifications.length} notifications for user ${userId}`);
-
+    
+    console.log(`Retrieved ${messages.length} messages for user ${userId}`);
+    
     res.json({
       status: 'success',
-      data: notifications
+      data: messages
     });
   } catch (error) {
-    console.error('Error fetching user notifications:', error);
+    console.error('Error fetching chat messages:', error);
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
 
-// API đánh dấu thông báo đã đọc
-app.put('/api/notifications/:id/read', async (req, res) => {
+// API gửi tin nhắn chat
+app.post('/api/chat/messages', async (req, res) => {
+  console.log('Received chat message request:', req.body);
   try {
-    const notificationId = req.params.id;
-
-    // Cập nhật trạng thái đã đọc
-    await pool.query(
-      'UPDATE notifications SET is_read = 1 WHERE id = ?',
-      [notificationId]
+    const { userId, message, sender } = req.body;
+    
+    if (!userId || !message || !sender) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'Missing required fields' 
+      });
+    }
+    
+    const [result] = await pool.query(
+      'INSERT INTO chat_messages (user_id, sender, message) VALUES (?, ?, ?)',
+      [userId, sender, message]
     );
-
+    
+    console.log('Message saved successfully, ID:', result.insertId);
+    
     res.json({
       status: 'success',
-      message: 'Notification marked as read'
+      message: 'Message sent successfully',
+      data: {
+        id: result.insertId
+      }
     });
   } catch (error) {
-    console.error('Error marking notification as read:', error);
+    console.error('Error sending chat message:', error);
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
 
-// API đánh dấu tất cả thông báo của người dùng đã đọc
-app.put('/api/users/:userId/notifications/read-all', async (req, res) => {
+// Lấy danh sách người dùng có tin nhắn (cho admin)
+app.get('/api/chat/users', async (req, res) => {
   try {
-    const userId = req.params.userId;
-
-    // Cập nhật tất cả thông báo của người dùng thành đã đọc
-    await pool.query(
-      'UPDATE notifications SET is_read = 1 WHERE user_id = ?',
-      [userId]
-    );
-
+    const [users] = await pool.query(`
+      SELECT DISTINCT cm.user_id, u.name as user_name,
+        (SELECT message FROM chat_messages 
+         WHERE user_id = cm.user_id 
+         ORDER BY created_at DESC LIMIT 1) as last_message,
+        (SELECT created_at FROM chat_messages 
+         WHERE user_id = cm.user_id 
+         ORDER BY created_at DESC LIMIT 1) as last_message_time,
+        (SELECT COUNT(*) FROM chat_messages 
+         WHERE user_id = cm.user_id AND sender = 'user' AND is_read = 0) as unread_count
+      FROM chat_messages cm
+      LEFT JOIN users u ON cm.user_id = u.id
+      ORDER BY last_message_time DESC
+    `);
+    
     res.json({
       status: 'success',
-      message: 'All notifications marked as read'
+      data: users
     });
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
+    console.error('Error fetching chat users:', error);
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
+
+// Đánh dấu tin nhắn đã đọc
+app.post('/api/chat/mark-read', async (req, res) => {
+  try {
+    const { userId, sender } = req.body;
+    
+    await pool.query(
+      'UPDATE chat_messages SET is_read = TRUE WHERE user_id = ? AND sender = ?',
+      [userId, sender]
+    );
+    
+    res.json({
+      status: 'success',
+      message: 'Messages marked as read'
+    });
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// API health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Server is running' });
+});
+
+
+
+
+
+
+
+

@@ -6,18 +6,11 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 class ApiService {
-  // Chọn baseUrl phù hợp dựa trên nền tảng
-  static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:3001/api'; // Cho web
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3001/api'; // Cho Android Emulator
-    } else if (Platform.isIOS) {
-      return 'http://localhost:3001/api'; // Cho iOS simulator
-    } else {
-      return 'http://localhost:3001/api'; // Mặc định cho các nền tảng khác
-    }
-  }
+  // Đảm bảo baseUrl đúng
+  // static const String baseUrl = 'http://10.0.2.2:3000/api'; // Cho Android Emulator
+  static const String baseUrl =
+      'http://localhost:3001/api'; // Cho web hoặc desktop
+  // static const String baseUrl = 'http://192.168.1.x:3000/api'; // Thay x bằng IP thực tế của máy chủ trong mạng LAN
 
   // Thêm timeout cho các request
   static const Duration requestTimeout = Duration(seconds: 15);
@@ -674,7 +667,8 @@ class ApiService {
   }
 
   // Lấy thông báo của người dùng
-  static Future<List<Map<String, dynamic>>> getUserNotifications(String userId) async {
+  static Future<List<Map<String, dynamic>>> getUserNotifications(
+      String userId) async {
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/users/$userId/notifications'))
@@ -684,7 +678,9 @@ class ApiService {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
           final List<dynamic> notificationsJson = data['data'];
-          return notificationsJson.map((json) => json as Map<String, dynamic>).toList();
+          return notificationsJson
+              .map((json) => json as Map<String, dynamic>)
+              .toList();
         } else {
           print('API returned error: ${data['message']}');
           return [];
@@ -717,5 +713,102 @@ class ApiService {
       return false;
     }
   }
+
+  // Lấy tin nhắn chat
+  static Future<List<Map<String, dynamic>>> getChatMessages(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/chat/messages/$userId'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['data']);
+      } else {
+        print('Failed to load messages: ${response.statusCode}');
+        print('Response: ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      print('Error getting chat messages: $e');
+      return [];
+    }
+  }
+
+  // Gửi tin nhắn chat
+  static Future<bool> sendChatMessage(String userId, String message, String sender) async {
+    try {
+      print('SENDING MESSAGE:');
+      print('- userId: $userId');
+      print('- message: $message');
+      print('- sender: $sender');
+      
+      final url = '$baseUrl/chat/messages';
+      print('- url: $url');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'userId': userId,
+          'message': message,
+          'sender': sender
+        }),
+      ).timeout(requestTimeout);
+
+      print('RESPONSE: ${response.statusCode} - ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['status'] == 'success';
+      }
+      return false;
+    } catch (e) {
+      print('ERROR SENDING MESSAGE: $e');
+      return false;
+    }
+  }
+
+  // Lấy danh sách người dùng có tin nhắn (cho admin)
+  static Future<List<Map<String, dynamic>>> getChatUsers() async {
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/chat/users'))
+          .timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'success') {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Error getting chat users: $e');
+      return [];
+    }
+  }
+
+  // Đánh dấu tin nhắn đã đọc
+  static Future<bool> markMessagesAsRead(String userId, String sender) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/chat/mark-read'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({'userId': userId, 'sender': sender}),
+          )
+          .timeout(requestTimeout);
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error marking messages as read: $e');
+      return false;
+    }
+  }
 }
+
+
+
 
