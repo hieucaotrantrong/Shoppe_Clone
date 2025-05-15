@@ -5,6 +5,7 @@ import 'package:food_app/widgets/home/header_section.dart';
 import 'package:food_app/widgets/home/categories_section.dart';
 import 'package:food_app/widgets/home/products_grid.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -14,22 +15,57 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  String? userName = "";
-  String searchQuery = "";
-  String selectedCategory = "All";
-  TextEditingController searchController = TextEditingController();
   bool _isLoading = true;
+  String? userName;
+  List<Map<String, dynamic>> _products = [];
+  List<Map<String, dynamic>> _filteredProducts = [];
+  List<Map<String, dynamic>> _categories = [];
+  String _selectedCategory = "All";
+  TextEditingController searchController = TextEditingController();
+  String searchQuery = "";
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _getUserName();
+    _getUserData();
+    _getProducts();
+    _getCategories();
+
+    // Thiết lập timer để tự động làm mới thông báo tin nhắn
+    _refreshTimer = Timer.periodic(Duration(minutes: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          // Kích hoạt rebuild để HeaderSection cập nhật số tin nhắn chưa đọc
+        });
+      }
+    });
   }
 
-  _getUserName() async {
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _getUserData() async {
     userName = await SharedPreferenceHelper().getUserName();
     setState(() {
       _isLoading = false;
+    });
+  }
+
+  Future<void> _getProducts() async {
+    // Implement product loading logic
+    setState(() {
+      _products = [];
+    });
+  }
+
+  Future<void> _getCategories() async {
+    // Implement categories loading logic
+    setState(() {
+      _categories = [];
     });
   }
 
@@ -41,7 +77,7 @@ class _HomeState extends State<Home> {
 
   void _selectCategory(String category) {
     setState(() {
-      selectedCategory = category;
+      _selectedCategory = category;
     });
   }
 
@@ -81,7 +117,7 @@ class _HomeState extends State<Home> {
 
                   // Categories Section
                   CategoriesSection(
-                    selectedCategory: selectedCategory,
+                    selectedCategory: _selectedCategory,
                     onAllTap: () => _selectCategory("All"),
                     onClothingTap: () => _selectCategory("Clothing"),
                     onShoesTap: () => _selectCategory("Shoes"),
@@ -94,7 +130,7 @@ class _HomeState extends State<Home> {
                   // Products Grid
                   ProductsGrid(
                     category:
-                        selectedCategory == "All" ? null : selectedCategory,
+                        _selectedCategory == "All" ? null : _selectedCategory,
                     searchQuery: searchQuery.isEmpty ? null : searchQuery,
                   ),
 
@@ -105,5 +141,3 @@ class _HomeState extends State<Home> {
     );
   }
 }
-
-

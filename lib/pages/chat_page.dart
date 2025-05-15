@@ -17,25 +17,18 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   String? _userId;
   String? _userName;
-  bool _isLoading = true;
   List<Map<String, dynamic>> _chatHistory = [];
+  bool _isLoading = true;
   Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadUserInfo().then((_) {
-      if (_userId != null) {
-        _loadChatHistory();
-      }
-    });
+    _getUserInfo();
 
-    // Kiểm tra kết nối API
-    _checkApiConnection();
-
-    // Tự động làm mới danh sách mỗi 10 giây
-    _refreshTimer = Timer.periodic(Duration(seconds: 10), (timer) {
-      if (_userId != null) {
+    // Thêm timer để tự động làm mới danh sách chat mỗi 2 giây thay vì 5 giây
+    _refreshTimer = Timer.periodic(Duration(seconds: 2), (timer) {
+      if (mounted) {
         _loadChatHistory();
       }
     });
@@ -47,55 +40,65 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  Future<void> _loadUserInfo() async {
+  Future<void> _getUserInfo() async {
     try {
-      _userId = await SharedPreferenceHelper().getUserId();
-      _userName = await SharedPreferenceHelper().getUserName();
-      
-      setState(() {});
+      final userId = await SharedPreferenceHelper().getUserId();
+      final userName = await SharedPreferenceHelper().getUserName();
 
-      if (_userId == null) {
-        print('WARNING: userId is null, user might not be logged in');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Vui lòng đăng nhập để sử dụng chat')),
-        );
-      }
+      setState(() {
+        _userId = userId;
+        _userName = userName;
+      });
+
+      await _loadChatHistory();
     } catch (e) {
       print('Error loading user info: $e');
+      print('Stack trace: ${StackTrace.current}');
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> _loadChatHistory() async {
-    if (_userId == null) return;
+    if (_userId == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
 
     try {
       final messages = await ApiService.getChatMessages(_userId!);
-      
+
       // Tính số tin nhắn chưa đọc từ admin
       int unreadCount = 0;
       String lastMessage = '';
       String lastMessageTime = DateTime.now().toIso8601String();
-      
+
       if (messages.isNotEmpty) {
         lastMessage = messages.last['message'] ?? '';
-        lastMessageTime = messages.last['created_at'] ?? DateTime.now().toIso8601String();
-        
+        lastMessageTime =
+            messages.last['created_at'] ?? DateTime.now().toIso8601String();
+
         for (var msg in messages) {
           if (msg['sender'] == 'admin' && msg['is_read'] == false) {
             unreadCount++;
           }
         }
       }
-      
+
       setState(() {
-        _chatHistory = [{
-          'user_id': _userId,
-          'user_name': _userName ?? 'Bạn',
-          'last_message': lastMessage,
-          'last_message_time': lastMessageTime,
-          'unread_count': unreadCount,
-          'has_messages': messages.isNotEmpty
-        }];
+        _chatHistory = [
+          {
+            'user_id': _userId,
+            'user_name': _userName ?? 'Bạn',
+            'last_message': lastMessage,
+            'last_message_time': lastMessageTime,
+            'unread_count': unreadCount,
+            'has_messages': messages.isNotEmpty
+          }
+        ];
         _isLoading = false;
       });
     } catch (e) {
@@ -107,37 +110,72 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   String _formatDateTime(String dateTimeStr) {
-    final dateTime = DateTime.parse(dateTimeStr);
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-    
-    if (difference.inDays > 0) {
-      return DateFormat('dd/MM/yyyy').format(dateTime);
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} giờ trước';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} phút trước';
-    } else {
-      return 'Vừa xong';
+    try {
+      final dateTime = DateTime.parse(dateTimeStr);
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+
+      if (difference.inDays > 0) {
+        return DateFormat('dd/MM/yyyy').format(dateTime);
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours} giờ trước';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes} phút trước';
+      } else {
+        return 'Vừa xong';
+      }
+    } catch (e) {
+      return 'Không xác định';
     }
   }
 
-  Future<void> _checkApiConnection() async {
-    try {
-      final response = await http
-          .get(Uri.parse('${ApiService.baseUrl}/health'))
-          .timeout(Duration(seconds: 5));
+  void _startNewChat() async {
+    if (_userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Không thể bắt đầu cuộc trò chuyện. Vui lòng đăng nhập lại.')),
+      );
+      return;
+    }
 
-      if (response.statusCode != 200) {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Tạo tin nhắn đầu tiên từ người dùng
+      final message = "Xin chào, tôi cần hỗ trợ.";
+      final success =
+          await ApiService.sendChatMessage(_userId!, message, 'user');
+
+      if (success) {
+        // Nếu gửi thành công, chuyển đến trang chat chi tiết
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UserChatDetail(
+              userId: _userId!,
+              userName: _userName ?? 'Bạn',
+            ),
+          ),
+        ).then((_) => _loadChatHistory());
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối.')),
+          const SnackBar(
+              content: Text(
+                  'Không thể bắt đầu cuộc trò chuyện. Vui lòng thử lại sau.')),
         );
       }
     } catch (e) {
-      print('API connection error: $e');
+      print('Error starting new chat: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối.')),
+        SnackBar(content: Text('Lỗi: $e')),
       );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -151,117 +189,135 @@ class _ChatPageState extends State<ChatPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _userId == null
+          : _chatHistory.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Vui lòng đăng nhập để sử dụng chat'),
-                      SizedBox(height: 16),
+                      Icon(Icons.chat_bubble_outline,
+                          size: 80, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Bạn chưa có cuộc trò chuyện nào',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                       ElevatedButton(
                         onPressed: () {
-                          // Chuyển đến trang đăng nhập
-                          // Navigator.pushNamed(context, '/login');
+                          _startNewChat();
                         },
-                        child: Text('Đăng nhập'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFff5722),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
                         ),
+                        child: const Text('Bắt đầu trò chuyện'),
                       ),
                     ],
                   ),
                 )
-              : _chatHistory.isEmpty || !_chatHistory[0]['has_messages']
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('Bạn chưa có cuộc trò chuyện nào'),
-                          SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () {
-                              // Tạo cuộc trò chuyện mới
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => UserChatDetail(
-                                    userId: _userId!,
-                                    userName: _userName ?? 'Bạn',
+              : ListView.builder(
+                  itemCount: _chatHistory.length,
+                  itemBuilder: (context, index) {
+                    final chat = _chatHistory[index];
+                    final hasUnread = (chat['unread_count'] ?? 0) > 0;
+
+                    return Card(
+                      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        contentPadding: EdgeInsets.all(16),
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFFff5722),
+                          child: Icon(Icons.support_agent, color: Colors.white),
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Hỗ trợ khách hàng',
+                                style: TextStyle(
+                                  fontWeight: hasUnread
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(height: 8),
+                            Text(
+                              chat['last_message'] ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: hasUnread
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _formatDateTime(chat['last_message_time']),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
                                   ),
                                 ),
-                              ).then((_) => _loadChatHistory());
-                            },
-                            child: Text('Bắt đầu trò chuyện'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFff5722),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _chatHistory.length,
-                      itemBuilder: (context, index) {
-                        final chat = _chatHistory[index];
-                        final hasUnread = (chat['unread_count'] ?? 0) > 0;
-                        
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: const Color(0xFFff5722),
-                            child: Icon(Icons.support_agent, color: Colors.white),
-                          ),
-                          title: Text(
-                            'Hỗ trợ khách hàng',
-                            style: TextStyle(
-                              fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                          subtitle: Text(
-                            chat['last_message'] ?? '',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                _formatDateTime(chat['last_message_time']),
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              if (hasUnread)
-                                Container(
-                                  margin: const EdgeInsets.only(top: 4),
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    chat['unread_count'].toString(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
+                                if (hasUnread)
+                                  Container(
+                                    padding: EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      '${chat['unread_count']}',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
-                                ),
-                            ],
-                          ),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => UserChatDetail(
-                                  userId: _userId!,
-                                  userName: _userName ?? 'Bạn',
-                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => UserChatDetail(
+                                userId: _userId!,
+                                userName: _userName ?? 'Bạn',
                               ),
-                            ).then((_) => _loadChatHistory());
-                          },
-                        );
-                      },
-                    ),
+                            ),
+                          ).then((_) => _loadChatHistory());
+                        },
+                      ),
+                    );
+                  },
+                ),
     );
   }
-}
 
+  // Thêm getter để lấy số tin nhắn chưa đọc
+  int get _unreadMessageCount {
+    if (_chatHistory.isEmpty) return 0;
+    return _chatHistory[0]['unread_count'] ?? 0;
+  }
+}

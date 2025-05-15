@@ -108,12 +108,14 @@ class ProductCard extends StatelessWidget {
                           size: 20,
                         ),
                         onPressed: () {
-                          cartProvider.addToCart({
+                          // Thêm tham số forceAdd = true để luôn thêm mới sản phẩm
+                          Provider.of<CartProvider>(context, listen: false).addToCart({
                             "id": docId,
                             "name": product["Name"],
                             "price": product["Price"],
                             "image": product["ImagePath"],
-                          }, 1); // Thêm tham số thứ hai là số lượng (1)
+                          }, 1, forceAdd: true);
+                          
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Added ${product["Name"]} to cart'),
@@ -297,5 +299,9 @@ class ShopeeStyleProductCard extends StatelessWidget {
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
   }
 }
+
+
+
+
 
 

@@ -20,7 +20,7 @@ class _OrderState extends State<Order> {
   @override
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context);
-    final screenWidth = MediaQuery.of(context).size.width;
+    final totalAmount = _calculateTotal(widget.cartItems);
 
     return Scaffold(
       appBar: AppBar(
@@ -43,6 +43,11 @@ class _OrderState extends State<Order> {
                 child: ListView.builder(
                   itemCount: widget.cartItems.length,
                   itemBuilder: (context, index) {
+                    // Kiểm tra index có hợp lệ không
+                    if (index < 0 || index >= widget.cartItems.length) {
+                      return SizedBox(); // Trả về widget trống nếu index không hợp lệ
+                    }
+                    
                     final item = widget.cartItems[index];
                     return Padding(
                       padding: const EdgeInsets.symmetric(
@@ -50,7 +55,7 @@ class _OrderState extends State<Order> {
                         vertical: 8.0,
                       ),
                       child: Dismissible(
-                        key: Key(item['name']),
+                        key: Key(item['cart_item_id']?.toString() ?? item['name']),
                         onDismissed: (direction) {
                           cartProvider.removeItem(index);
                         },
@@ -161,49 +166,54 @@ class _OrderState extends State<Order> {
                   ),
                 ],
               ),
-              child: SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Tổng tiền:",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Tổng cộng:",
+                        style: TextStyle(
+                          fontSize: 14.0,
+                          color: Colors.grey[600],
                         ),
-                        Text(
-                          "₫${_calculateTotal(widget.cartItems)}",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _placeOrder,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        minimumSize: Size(double.infinity, 50),
                       ),
-                      child: _isLoading
-                          ? CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                              "Đặt hàng",
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white,
-                              ),
-                            ),
+                      Text(
+                        "\$${totalAmount.toStringAsFixed(2)}",
+                        style: TextStyle(
+                          fontSize: 20.0,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFFff5722),
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 32.0,
+                        vertical: 12.0,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
                     ),
-                  ],
-                ),
+                    onPressed: _isLoading ? null : _placeOrder,
+                    child: _isLoading
+                        ? CircularProgressIndicator(color: Colors.white)
+                        : Text(
+                            "Đặt hàng",
+                            style: TextStyle(
+                              fontSize: 16.0,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ],
               ),
             ),
     );
@@ -292,6 +302,8 @@ class _OrderState extends State<Order> {
     }
   }
 }
+
+
 
 
 

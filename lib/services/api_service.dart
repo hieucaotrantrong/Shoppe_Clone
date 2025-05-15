@@ -714,22 +714,22 @@ class ApiService {
     }
   }
 
-  // Lấy tin nhắn chat
+  // Lấy tin nhắn chat của người dùng
   static Future<List<Map<String, dynamic>>> getChatMessages(String userId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/chat/messages/$userId'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(requestTimeout);
+      // Thêm timestamp để tránh cache
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final response = await http
+          .get(Uri.parse('$baseUrl/chat/messages/$userId?t=$timestamp'))
+          .timeout(requestTimeout);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return List<Map<String, dynamic>>.from(data['data']);
-      } else {
-        print('Failed to load messages: ${response.statusCode}');
-        print('Response: ${response.body}');
-        return [];
+        if (data['status'] == 'success') {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
       }
+      return [];
     } catch (e) {
       print('Error getting chat messages: $e');
       return [];
@@ -793,21 +793,50 @@ class ApiService {
   // Đánh dấu tin nhắn đã đọc
   static Future<bool> markMessagesAsRead(String userId, String sender) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/chat/mark-read'),
-            headers: {'Content-Type': 'application/json'},
-            body: json.encode({'userId': userId, 'sender': sender}),
-          )
-          .timeout(requestTimeout);
-
-      return response.statusCode == 200;
+      // Thêm timestamp để tránh cache
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final response = await http.post(
+        Uri.parse('$baseUrl/chat/mark-read?t=$timestamp'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'userId': userId,
+          'sender': sender
+        }),
+      ).timeout(requestTimeout);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['status'] == 'success';
+      }
+      return false;
     } catch (e) {
       print('Error marking messages as read: $e');
       return false;
     }
   }
+
+  // Lấy số lượng tin nhắn chưa đọc
+  static Future<int> getUnreadMessageCount(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/chat/unread-count/$userId'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['unread_count'] ?? 0;
+      }
+      return 0;
+    } catch (e) {
+      print('Error getting unread message count: $e');
+      return 0;
+    }
+  }
 }
+
+
+
 
 
 

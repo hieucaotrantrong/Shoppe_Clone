@@ -25,9 +25,12 @@ class _UserChatDetailState extends State<UserChatDetail> {
   void initState() {
     super.initState();
     _loadMessages();
-
-    // Tự động làm mới tin nhắn mỗi 5 giây
-    _refreshTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+    
+    // Đánh dấu tin nhắn là đã đọc khi mở trang chat
+    _markMessagesAsRead();
+    
+    // Tự động làm mới tin nhắn mỗi 2 giây thay vì 5 giây
+    _refreshTimer = Timer.periodic(Duration(seconds: 2), (timer) {
       _loadMessages();
     });
   }
@@ -44,6 +47,19 @@ class _UserChatDetailState extends State<UserChatDetail> {
     try {
       final messages = await ApiService.getChatMessages(widget.userId);
 
+      // Kiểm tra xem có tin nhắn mới không
+      bool hasNewMessages = false;
+      if (_messages.length != messages.length) {
+        hasNewMessages = true;
+      } else if (_messages.isNotEmpty && messages.isNotEmpty) {
+        // Kiểm tra ID tin nhắn cuối cùng
+        final lastOldMsgId = _messages.last['id'];
+        final lastNewMsgId = messages.last['id'];
+        if (lastOldMsgId != lastNewMsgId) {
+          hasNewMessages = true;
+        }
+      }
+
       setState(() {
         _messages = messages;
         _isLoading = false;
@@ -52,8 +68,10 @@ class _UserChatDetailState extends State<UserChatDetail> {
       // Đánh dấu tin nhắn từ admin là đã đọc
       ApiService.markMessagesAsRead(widget.userId, 'admin');
 
-      // Cuộn xuống tin nhắn cuối cùng
-      _scrollToBottom();
+      // Cuộn xuống tin nhắn cuối cùng nếu có tin nhắn mới
+      if (hasNewMessages) {
+        _scrollToBottom();
+      }
     } catch (e) {
       print('Error loading messages: $e');
       setState(() {
@@ -134,6 +152,14 @@ class _UserChatDetailState extends State<UserChatDetail> {
       return '${difference.inMinutes} phút trước';
     } else {
       return 'Vừa xong';
+    }
+  }
+
+  Future<void> _markMessagesAsRead() async {
+    try {
+      await ApiService.markMessagesAsRead(widget.userId, 'admin');
+    } catch (e) {
+      print('Error marking messages as read: $e');
     }
   }
 
@@ -246,3 +272,5 @@ class _UserChatDetailState extends State<UserChatDetail> {
     );
   }
 }
+
+

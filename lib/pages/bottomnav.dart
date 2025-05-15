@@ -24,11 +24,11 @@ class _BottomNavState extends State<BottomNav> {
     final cartProvider = Provider.of<CartProvider>(context);
     final notificationProvider = Provider.of<NotificationProvider>(context);
 
+    // Cập nhật danh sách trang - xóa trang ChatPage
     final List<Widget> pages = [
       const Home(),
       Order(cartItems: cartProvider.cartItems),
       const NotificationsPage(),
-      const ChatPage(), // Thêm trang chat
       const Profile(),
     ];
 
@@ -41,13 +41,55 @@ class _BottomNavState extends State<BottomNav> {
         color: const Color.fromARGB(255, 207, 210, 150),
         animationDuration: const Duration(milliseconds: 300),
         onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          if (index == 1) { // Giả sử index 1 là giỏ hàng
+            // Lấy danh sách sản phẩm từ CartProvider
+            final cartItems = Provider.of<CartProvider>(context, listen: false).cartItems;
+            
+            // Chuyển đến trang Order và truyền danh sách sản phẩm
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => Order(cartItems: cartItems),
+              ),
+            );
+          } else {
+            setState(() {
+              _currentIndex = index;
+            });
+          }
         },
         items: [
           const Icon(Icons.home, size: 30),
-          const Icon(Icons.shopping_cart, size: 30),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              const Icon(Icons.shopping_cart, size: 30),
+              if (cartProvider.itemCount > 0)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 14,
+                      minHeight: 14,
+                    ),
+                    child: Text(
+                      '${cartProvider.itemCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           Stack(
             alignment: Alignment.center,
             children: [
@@ -84,6 +126,10 @@ class _BottomNavState extends State<BottomNav> {
     );
   }
 }
+
+
+
+
 
 
 

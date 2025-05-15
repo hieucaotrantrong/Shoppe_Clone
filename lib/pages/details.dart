@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:food_app/providers/cart_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:food_app/pages/order.dart';
 
 class Details extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -32,7 +33,7 @@ class _DetailsState extends State<Details> {
   @override
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
-    
+
     // Kiểm tra và chuyển đổi giá từ String sang double nếu cần
     double originalPrice;
     if (widget.product["Price"] is String) {
@@ -40,10 +41,9 @@ class _DetailsState extends State<Details> {
     } else {
       originalPrice = widget.product["Price"].toDouble();
     }
-    
+
     final discountedPrice = originalPrice * (1 - discount / 100);
 
-    
     print("Product details: ${widget.product}");
     print("Original price: $originalPrice");
     print("Discounted price: $discountedPrice");
@@ -64,6 +64,57 @@ class _DetailsState extends State<Details> {
             icon: Icon(Icons.favorite_border),
             onPressed: () {},
           ),
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Stack(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.shopping_cart_outlined),
+                  onPressed: () {
+                    // Lấy danh sách sản phẩm mới nhất từ CartProvider
+                    final cartItems =
+                        Provider.of<CartProvider>(context, listen: false)
+                            .cartItems;
+
+                    // Chuyển đến trang Order và truyền danh sách sản phẩm
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => Order(cartItems: cartItems),
+                      ),
+                    );
+                  },
+                ),
+                if (cartProvider.itemCount > 0)
+                  Positioned(
+                    right: 5,
+                    top: 5,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 14,
+                        minHeight: 14,
+                      ),
+                      child: Text(
+                        '${cartProvider.itemCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
       body: Column(
@@ -76,7 +127,8 @@ class _DetailsState extends State<Details> {
                   // Ảnh sản phẩm
                   AspectRatio(
                     aspectRatio: 1,
-                    child: widget.product['ImagePath'] != null && widget.product['ImagePath'].toString().isNotEmpty
+                    child: widget.product['ImagePath'] != null &&
+                            widget.product['ImagePath'].toString().isNotEmpty
                         ? Image.network(
                             widget.product['ImagePath'],
                             width: double.infinity,
@@ -85,16 +137,18 @@ class _DetailsState extends State<Details> {
                               print("Error loading image: $error");
                               return Container(
                                 color: Colors.grey[300],
-                                child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey[600]),
+                                child: Icon(Icons.image_not_supported,
+                                    size: 50, color: Colors.grey[600]),
                               );
                             },
                           )
                         : Container(
                             color: Colors.grey[300],
-                            child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey[600]),
+                            child: Icon(Icons.image_not_supported,
+                                size: 50, color: Colors.grey[600]),
                           ),
                   ),
-                  
+
                   // Thông tin giá và tên sản phẩm
                   Container(
                     padding: EdgeInsets.all(15),
@@ -105,7 +159,8 @@ class _DetailsState extends State<Details> {
                         Row(
                           children: [
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.red,
                                 borderRadius: BorderRadius.circular(2),
@@ -166,7 +221,8 @@ class _DetailsState extends State<Details> {
                             Icon(Icons.star, color: Colors.amber, size: 18),
                             Icon(Icons.star, color: Colors.amber, size: 18),
                             Icon(Icons.star, color: Colors.amber, size: 18),
-                            Icon(Icons.star_half, color: Colors.amber, size: 18),
+                            Icon(Icons.star_half,
+                                color: Colors.amber, size: 18),
                             SizedBox(width: 8),
                             Text(
                               '4.8',
@@ -188,9 +244,9 @@ class _DetailsState extends State<Details> {
                       ],
                     ),
                   ),
-                  
+
                   SizedBox(height: 10),
-                  
+
                   // Vận chuyển
                   Container(
                     padding: EdgeInsets.all(15),
@@ -200,7 +256,8 @@ class _DetailsState extends State<Details> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.local_shipping_outlined, size: 20, color: Colors.grey[700]),
+                            Icon(Icons.local_shipping_outlined,
+                                size: 20, color: Colors.grey[700]),
                             SizedBox(width: 10),
                             Text(
                               'Vận chuyển',
@@ -233,9 +290,9 @@ class _DetailsState extends State<Details> {
                       ],
                     ),
                   ),
-                  
+
                   SizedBox(height: 10),
-                  
+
                   // Số lượng
                   Container(
                     padding: EdgeInsets.all(15),
@@ -290,9 +347,9 @@ class _DetailsState extends State<Details> {
                       ],
                     ),
                   ),
-                  
+
                   SizedBox(height: 10),
-                  
+
                   // Mô tả sản phẩm
                   Container(
                     padding: EdgeInsets.all(15),
@@ -323,7 +380,7 @@ class _DetailsState extends State<Details> {
               ),
             ),
           ),
-          
+
           // Bottom bar với nút thêm vào giỏ hàng
           Container(
             padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
@@ -364,25 +421,28 @@ class _DetailsState extends State<Details> {
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFFF6600),
+                      backgroundColor: Color(0xFFff5722),
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                      minimumSize: Size(double.infinity, 50),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     onPressed: () {
                       // In ra id để debug
-                      print('Adding product to cart with id: ${widget.product["id"]}');
-                      print('Product id type: ${widget.product["id"].runtimeType}');
-                      
+                      print(
+                          'Adding product to cart with id: ${widget.product["id"]}');
+                      print(
+                          'Product id type: ${widget.product["id"].runtimeType}');
+
+                      // Thêm tham số forceAdd = true để luôn thêm mới sản phẩm
                       cartProvider.addToCart({
                         "id": widget.product["id"] ?? "1",
                         "name": widget.product["Name"],
                         "price": discountedPrice,
                         "image": widget.product["ImagePath"],
-                      }, quantity);
-                      
+                      }, quantity, forceAdd: true);
+
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Đã thêm vào giỏ hàng'),
@@ -411,12 +471,3 @@ class _DetailsState extends State<Details> {
     );
   }
 }
-
-
-
-
-
-
-
-
-
