@@ -63,17 +63,30 @@ class _OrderHistoryState extends State<OrderHistory>
     }
 
     try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      print('Fetching orders for user $userId');
+      // Sửa đường dẫn API để phù hợp với server
       final orders = await ApiService.getUserOrders(userId!);
 
       if (!mounted) return;
 
+      print('Received ${orders.length} orders');
+
       setState(() {
         _orders = orders;
-        _isLoading = false;
       });
 
       // Lấy chi tiết cho mỗi đơn hàng
-      _fetchOrderItems();
+      if (orders.isNotEmpty) {
+        await _fetchOrderItems();
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
     } catch (e) {
       print("Error fetching orders: $e");
       if (mounted) {
@@ -85,6 +98,8 @@ class _OrderHistoryState extends State<OrderHistory>
   }
 
   Future<void> _fetchOrderItems() async {
+    Map<String, List<Map<String, dynamic>>> newOrderItems = {};
+
     for (var order in _orders) {
       try {
         final orderId = order['id'].toString();
@@ -93,13 +108,17 @@ class _OrderHistoryState extends State<OrderHistory>
         if (!mounted) return;
 
         if (orderItemsResponse.isNotEmpty) {
-          setState(() {
-            _orderItems[orderId] = orderItemsResponse;
-          });
+          newOrderItems[orderId] = orderItemsResponse;
         }
       } catch (e) {
-        print("Error fetching order items: $e");
+        print("Error fetching order items for order ${order['id']}: $e");
       }
+    }
+
+    if (mounted) {
+      setState(() {
+        _orderItems = newOrderItems;
+      });
     }
   }
 
@@ -128,7 +147,9 @@ class _OrderHistoryState extends State<OrderHistory>
     if (_orderItems.containsKey(orderId) && _orderItems[orderId]!.isNotEmpty) {
       final items = _orderItems[orderId]!;
       final firstItem = items[0];
-      final itemName = firstItem['name'] ?? 'Sản phẩm không tên';
+      final itemName = firstItem['product_name'] ??
+          firstItem['name'] ??
+          'Sản phẩm không tên';
 
       if (items.length > 1) {
         return '$itemName và ${items.length - 1} sản phẩm khác';
@@ -293,6 +314,10 @@ class _OrderHistoryState extends State<OrderHistory>
                         separatorBuilder: (context, index) => Divider(),
                         itemBuilder: (context, index) {
                           final item = items[index];
+                          final productName = item['product_name'] ??
+                              item['name'] ??
+                              'Sản phẩm không tên';
+
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: Container(
@@ -315,7 +340,7 @@ class _OrderHistoryState extends State<OrderHistory>
                               ),
                             ),
                             title: Text(
-                              item['name'] ?? 'Sản phẩm không tên',
+                              productName,
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                             subtitle:
@@ -400,10 +425,10 @@ class _OrderHistoryState extends State<OrderHistory>
                 _isLoading = true;
               });
 
-              final result =
-                  await ApiService.cancelOrder(order['id'].toString());
+              final result = await ApiService.updateOrderStatus(
+                  order['id'].toString(), 'cancelled');
 
-              if (result['status'] == 'success') {
+              if (result != null && result['status'] == 'success') {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Đã hủy đơn hàng thành công')),
                 );
@@ -414,8 +439,9 @@ class _OrderHistoryState extends State<OrderHistory>
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                      content:
-                          Text(result['message'] ?? 'Không thể hủy đơn hàng')),
+                      content: Text(result != null && result['message'] != null
+                          ? result['message']
+                          : 'Không thể hủy đơn hàng')),
                 );
               }
             },
@@ -489,15 +515,39 @@ class _OrderHistoryState extends State<OrderHistory>
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildOrderList('pending'),
-                _buildOrderList('processing'),
-                _buildOrderList('shipped'),
-                _buildOrderList('delivered'),
-              ],
-            ),
+          : _orders.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.shopping_bag_outlined,
+                          size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text(
+                        'Bạn chưa có đơn hàng nào',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                      ),
+                      SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _fetchOrders,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: Text('Làm mới'),
+                      ),
+                    ],
+                  ),
+                )
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildOrderList('pending'),
+                    _buildOrderList('processing'),
+                    _buildOrderList('shipped'),
+                    _buildOrderList('delivered'),
+                  ],
+                ),
     );
   }
 }

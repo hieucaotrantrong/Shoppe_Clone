@@ -1479,26 +1479,63 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // API lấy danh sách đơn hàng của người dùng
-app.get('/api/orders/user/:userId', async (req, res) => {
+app.get('/users/:id/orders', async (req, res) => {
   try {
-    const userId = req.params.userId;
+    const userId = req.params.id;
     
+    console.log(`Getting orders for user ${userId}`);
+    
+    // Lấy danh sách đơn hàng
     const [orders] = await pool.query(
-      `SELECT o.*, 
-        (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
-       FROM orders o
-       WHERE o.user_id = ?
-       ORDER BY o.created_at DESC`,
+      `SELECT * FROM orders 
+       WHERE user_id = ? 
+       ORDER BY created_at DESC`,
       [userId]
     );
+    
+    console.log(`Found ${orders.length} orders for user ${userId}`);
     
     res.json({
       status: 'success',
       data: orders
     });
   } catch (error) {
-    console.error('Error fetching user orders:', error);
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('Error getting user orders:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+});
+
+// API để lấy các mục trong đơn hàng
+app.get('/orders/:id/items', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    console.log(`Getting items for order ${orderId}`);
+    
+    // Lấy các mục trong đơn hàng
+    const [items] = await pool.query(
+      `SELECT oi.*, p.image_path, p.name as product_name
+       FROM order_items oi
+       LEFT JOIN products p ON oi.product_id = p.id
+       WHERE oi.order_id = ?`,
+      [orderId]
+    );
+    
+    console.log(`Found ${items.length} items for order ${orderId}`);
+    
+    res.json({
+      status: 'success',
+      data: items
+    });
+  } catch (error) {
+    console.error('Error getting order items:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
   }
 });
 
@@ -1924,19 +1961,12 @@ app.get('/api/orders/:id/items', async (req, res) => {
     
     // Lấy các mục trong đơn hàng
     const [items] = await pool.query(
-      `SELECT oi.*, p.image_path 
+      `SELECT oi.*, p.image_path, p.name as product_name
        FROM order_items oi
        LEFT JOIN products p ON oi.product_id = p.id
        WHERE oi.order_id = ?`,
       [orderId]
     );
-    
-    if (items.length === 0) {
-      return res.json({
-        status: 'success',
-        data: []
-      });
-    }
     
     res.json({
       status: 'success',
@@ -1950,4 +1980,9 @@ app.get('/api/orders/:id/items', async (req, res) => {
     });
   }
 });
+
+
+
+
+
 

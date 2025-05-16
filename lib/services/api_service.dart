@@ -1,19 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data'; // Thêm import này cho Uint8List
+import 'dart:math'; // Thêm import này cho hàm min
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 class ApiService {
-  // Đảm bảo baseUrl đúng
-  // static const String baseUrl = 'http://10.0.2.2:3000/api'; // Cho Android Emulator
-  static const String baseUrl =
-      'http://localhost:3001/api'; // Cho web hoặc desktop
-  // static const String baseUrl = 'http://192.168.1.x:3000/api'; // Thay x bằng IP thực tế của máy chủ trong mạng LAN
-
-  // Thêm timeout cho các request
-  static const Duration requestTimeout = Duration(seconds: 15);
+  // Cập nhật baseUrl để không có "api/" ở cuối
+  static const String baseUrl = 'http://localhost:3001/api';
+  static const Duration requestTimeout = Duration(seconds: 10);
 
   // Đăng ký người dùng mới
   static Future<Map<String, dynamic>?> register(
@@ -715,18 +711,18 @@ class ApiService {
   }
 
   // Lấy tin nhắn chat của người dùng
-  static Future<List<Map<String, dynamic>>> getChatMessages(String userId) async {
+  static Future<List<Map<String, dynamic>>> getChatMessages(
+      String userId) async {
     try {
       // Thêm timestamp để tránh cache hoàn toàn
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/chat/messages/$userId?t=$timestamp'),
-            headers: {'Cache-Control': 'no-cache, no-store, must-revalidate'},
-          )
-          .timeout(requestTimeout);
+      final response = await http.get(
+        Uri.parse('$baseUrl/chat/messages/$userId?t=$timestamp'),
+        headers: {'Cache-Control': 'no-cache, no-store, must-revalidate'},
+      ).timeout(requestTimeout);
 
-      print('API response for messages: ${response.statusCode} - ${response.body}');
+      print(
+          'API response for messages: ${response.statusCode} - ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -744,28 +740,28 @@ class ApiService {
   }
 
   // Gửi tin nhắn chat
-  static Future<bool> sendChatMessage(String userId, String message, String sender) async {
+  static Future<bool> sendChatMessage(
+      String userId, String message, String sender) async {
     try {
       print('SENDING MESSAGE:');
       print('- userId: $userId');
       print('- message: $message');
       print('- sender: $sender');
-      
+
       final url = '$baseUrl/chat/messages';
       print('- url: $url');
-      
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'userId': userId,
-          'message': message,
-          'sender': sender
-        }),
-      ).timeout(requestTimeout);
+
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(
+                {'userId': userId, 'message': message, 'sender': sender}),
+          )
+          .timeout(requestTimeout);
 
       print('RESPONSE: ${response.statusCode} - ${response.body}');
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['status'] == 'success';
@@ -802,15 +798,14 @@ class ApiService {
     try {
       // Thêm timestamp để tránh cache
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final response = await http.post(
-        Uri.parse('$baseUrl/chat/mark-read?t=$timestamp'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'userId': userId,
-          'sender': sender
-        }),
-      ).timeout(requestTimeout);
-      
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/chat/mark-read?t=$timestamp'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({'userId': userId, 'sender': sender}),
+          )
+          .timeout(requestTimeout);
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['status'] == 'success';
@@ -841,13 +836,22 @@ class ApiService {
     }
   }
 
-  // Lấy danh sách đơn hàng của người dùng
+  // Hàm để lấy danh sách đơn hàng của người dùng
   static Future<List<Map<String, dynamic>>> getUserOrders(String userId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/orders/user/$userId'),
-        headers: {'Content-Type': 'application/json'},
-      );
+      // Sửa URL để khớp với endpoint của server
+      final url = '$baseUrl/orders?user_id=$userId';
+      print('Calling API: $url');
+
+      final response = await http
+          .get(
+            Uri.parse(url),
+          )
+          .timeout(requestTimeout);
+
+      print('User orders response status: ${response.statusCode}');
+      print(
+          'User orders response body: ${response.body.substring(0, min(200, response.body.length))}...');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -856,7 +860,9 @@ class ApiService {
         }
         return [];
       } else {
-        print('Failed to load orders: ${response.statusCode}');
+        print('Failed to load user orders: ${response.statusCode}');
+        print(
+            'Response body: ${response.body.substring(0, min(200, response.body.length))}...');
         return [];
       }
     } catch (e) {
@@ -865,58 +871,19 @@ class ApiService {
     }
   }
 
-  // Thêm hàm mới để lấy chi tiết đơn hàng
-  static Future<Map<String, dynamic>> getOrderDetails(String orderId) async {
+  // Cập nhật hàm để lấy các mục trong đơn hàng
+  static Future<List<Map<String, dynamic>>> getOrderItems(
+      String orderId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/orders/$orderId/details'),
-        headers: {'Content-Type': 'application/json'},
-      );
+      // Sửa URL để khớp với endpoint của server
+      final url = '$baseUrl/orders/$orderId/items';
+      print('Calling API: $url');
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 'success' && data['data'] != null) {
-          return data['data'];
-        }
-        return {};
-      } else {
-        print('Failed to load order details: ${response.statusCode}');
-        return {};
-      }
-    } catch (e) {
-      print('Error getting order details: $e');
-      return {};
-    }
-  }
-
-  // Thêm hàm để hủy đơn hàng
-  static Future<Map<String, dynamic>> cancelOrder(String orderId) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/orders/$orderId/status'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'status': 'cancelled'}),
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        print('Failed to cancel order: ${response.statusCode}');
-        return {'status': 'error', 'message': 'Không thể hủy đơn hàng'};
-      }
-    } catch (e) {
-      print('Error cancelling order: $e');
-      return {'status': 'error', 'message': 'Lỗi kết nối'};
-    }
-  }
-
-  // Thêm hàm để lấy các mục trong đơn hàng
-  static Future<List<Map<String, dynamic>>> getOrderItems(String orderId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/orders/$orderId/items'),
-        headers: {'Content-Type': 'application/json'},
-      );
+      final response = await http
+          .get(
+            Uri.parse(url),
+          )
+          .timeout(requestTimeout);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -934,10 +901,3 @@ class ApiService {
     }
   }
 }
-
-
-
-
-
-
-
