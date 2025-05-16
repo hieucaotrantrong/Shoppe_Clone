@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:food_app/pages/login.dart';
 import 'package:food_app/pages/edit_profile.dart';
+import 'package:food_app/pages/order_history.dart';
 import 'package:food_app/services/shared_pref.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -83,7 +84,10 @@ class _ProfileState extends State<Profile> {
               });
             }),
             buildProfileItem(Icons.history, "Order History", () {
-              // Chuyển đến trang lịch sử đơn hàng
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const OrderHistory()),
+              );
             }),
             buildProfileItem(Icons.settings, "Settings", () {
               // Chuyển đến trang cài đặt
@@ -154,6 +158,11 @@ class _ProfileState extends State<Profile> {
             builder: (context) => LogIn()));
   }
 }
+
+
+
+
+
 
 
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:food_app/pages/login.dart';
+import 'package:food_app/pages/order_history.dart';
 import 'package:food_app/providers/cart_provider.dart';
 import 'package:food_app/providers/notification_provider.dart';
 import 'package:provider/provider.dart';
@@ -31,7 +32,12 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: LogIn(),
+      routes: {
+        '/order-history': (context) => const OrderHistory(),
+      },
     );
   }
 }
+
+
 

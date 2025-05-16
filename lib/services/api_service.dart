@@ -717,16 +717,23 @@ class ApiService {
   // Lấy tin nhắn chat của người dùng
   static Future<List<Map<String, dynamic>>> getChatMessages(String userId) async {
     try {
-      // Thêm timestamp để tránh cache
+      // Thêm timestamp để tránh cache hoàn toàn
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final response = await http
-          .get(Uri.parse('$baseUrl/chat/messages/$userId?t=$timestamp'))
+          .get(
+            Uri.parse('$baseUrl/chat/messages/$userId?t=$timestamp'),
+            headers: {'Cache-Control': 'no-cache, no-store, must-revalidate'},
+          )
           .timeout(requestTimeout);
+
+      print('API response for messages: ${response.statusCode} - ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
-          return List<Map<String, dynamic>>.from(data['data']);
+          final messages = List<Map<String, dynamic>>.from(data['data']);
+          print('Retrieved ${messages.length} messages for user $userId');
+          return messages;
         }
       }
       return [];
@@ -831,6 +838,99 @@ class ApiService {
     } catch (e) {
       print('Error getting unread message count: $e');
       return 0;
+    }
+  }
+
+  // Lấy danh sách đơn hàng của người dùng
+  static Future<List<Map<String, dynamic>>> getUserOrders(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/orders/user/$userId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'success' && data['data'] != null) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
+        return [];
+      } else {
+        print('Failed to load orders: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('Error getting user orders: $e');
+      return [];
+    }
+  }
+
+  // Thêm hàm mới để lấy chi tiết đơn hàng
+  static Future<Map<String, dynamic>> getOrderDetails(String orderId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/orders/$orderId/details'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'success' && data['data'] != null) {
+          return data['data'];
+        }
+        return {};
+      } else {
+        print('Failed to load order details: ${response.statusCode}');
+        return {};
+      }
+    } catch (e) {
+      print('Error getting order details: $e');
+      return {};
+    }
+  }
+
+  // Thêm hàm để hủy đơn hàng
+  static Future<Map<String, dynamic>> cancelOrder(String orderId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/orders/$orderId/status'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'status': 'cancelled'}),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        print('Failed to cancel order: ${response.statusCode}');
+        return {'status': 'error', 'message': 'Không thể hủy đơn hàng'};
+      }
+    } catch (e) {
+      print('Error cancelling order: $e');
+      return {'status': 'error', 'message': 'Lỗi kết nối'};
+    }
+  }
+
+  // Thêm hàm để lấy các mục trong đơn hàng
+  static Future<List<Map<String, dynamic>>> getOrderItems(String orderId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/orders/$orderId/items'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'success' && data['data'] != null) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
+        return [];
+      } else {
+        print('Failed to load order items: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('Error getting order items: $e');
+      return [];
     }
   }
 }

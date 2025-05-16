@@ -14,7 +14,7 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
+class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   String? _userId;
   String? _userName;
   List<Map<String, dynamic>> _chatHistory = [];
@@ -24,32 +24,42 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _getUserInfo();
-
-    // Thêm timer để tự động làm mới danh sách chat mỗi 2 giây thay vì 5 giây
-    _refreshTimer = Timer.periodic(Duration(seconds: 2), (timer) {
+    
+    // Thêm timer để tự động làm mới danh sách chat mỗi 1 giây
+    _refreshTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (mounted) {
         _loadChatHistory();
       }
     });
   }
-
+  
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Khi ứng dụng được mở lại, cập nhật ngay lập tức
+      _loadChatHistory();
+    }
   }
 
   Future<void> _getUserInfo() async {
     try {
       final userId = await SharedPreferenceHelper().getUserId();
       final userName = await SharedPreferenceHelper().getUserName();
-
+      
       setState(() {
         _userId = userId;
         _userName = userName;
       });
-
+      
       await _loadChatHistory();
     } catch (e) {
       print('Error loading user info: $e');
@@ -67,38 +77,38 @@ class _ChatPageState extends State<ChatPage> {
       });
       return;
     }
-
+    
     try {
+      print('Loading chat history for user: $_userId');
       final messages = await ApiService.getChatMessages(_userId!);
-
+      
       // Tính số tin nhắn chưa đọc từ admin
       int unreadCount = 0;
       String lastMessage = '';
       String lastMessageTime = DateTime.now().toIso8601String();
-
+      
       if (messages.isNotEmpty) {
         lastMessage = messages.last['message'] ?? '';
-        lastMessageTime =
-            messages.last['created_at'] ?? DateTime.now().toIso8601String();
-
+        lastMessageTime = messages.last['created_at'] ?? DateTime.now().toIso8601String();
+        
         for (var msg in messages) {
           if (msg['sender'] == 'admin' && msg['is_read'] == false) {
             unreadCount++;
           }
         }
       }
-
+      
+      print('Unread count: $unreadCount, Last message: $lastMessage');
+      
       setState(() {
-        _chatHistory = [
-          {
-            'user_id': _userId,
-            'user_name': _userName ?? 'Bạn',
-            'last_message': lastMessage,
-            'last_message_time': lastMessageTime,
-            'unread_count': unreadCount,
-            'has_messages': messages.isNotEmpty
-          }
-        ];
+        _chatHistory = [{
+          'user_id': _userId,
+          'user_name': _userName ?? 'Bạn',
+          'last_message': lastMessage,
+          'last_message_time': lastMessageTime,
+          'unread_count': unreadCount,
+          'has_messages': messages.isNotEmpty
+        }];
         _isLoading = false;
       });
     } catch (e) {
@@ -321,3 +331,5 @@ class _ChatPageState extends State<ChatPage> {
     return _chatHistory[0]['unread_count'] ?? 0;
   }
 }
+
+

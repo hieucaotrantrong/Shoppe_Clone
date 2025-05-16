@@ -14,69 +14,97 @@ class UserChatDetail extends StatefulWidget {
   State<UserChatDetail> createState() => _UserChatDetailState();
 }
 
-class _UserChatDetailState extends State<UserChatDetail> {
+class _UserChatDetailState extends State<UserChatDetail> with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   List<Map<String, dynamic>> _messages = [];
   bool _isLoading = true;
   Timer? _refreshTimer;
+  DateTime _lastRefreshTime = DateTime.now();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadMessages();
     
     // Đánh dấu tin nhắn là đã đọc khi mở trang chat
     _markMessagesAsRead();
     
-    // Tự động làm mới tin nhắn mỗi 2 giây thay vì 5 giây
-    _refreshTimer = Timer.periodic(Duration(seconds: 2), (timer) {
+    // Tự động làm mới tin nhắn mỗi 1 giây
+    _refreshTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       _loadMessages();
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Khi ứng dụng được mở lại, cập nhật ngay lập tức
+      _loadMessages();
+      _markMessagesAsRead();
+    }
+  }
 
   Future<void> _loadMessages() async {
     try {
+      // Chỉ làm mới nếu đã qua ít nhất 500ms kể từ lần cuối
+      final now = DateTime.now();
+      if (now.difference(_lastRefreshTime).inMilliseconds < 500) {
+        return;
+      }
+      _lastRefreshTime = now;
+      
+      print('Loading messages for user: ${widget.userId}');
       final messages = await ApiService.getChatMessages(widget.userId);
+      print('Received ${messages.length} messages');
 
       // Kiểm tra xem có tin nhắn mới không
       bool hasNewMessages = false;
       if (_messages.length != messages.length) {
         hasNewMessages = true;
+        print('New messages detected: ${messages.length} vs ${_messages.length}');
       } else if (_messages.isNotEmpty && messages.isNotEmpty) {
         // Kiểm tra ID tin nhắn cuối cùng
         final lastOldMsgId = _messages.last['id'];
         final lastNewMsgId = messages.last['id'];
         if (lastOldMsgId != lastNewMsgId) {
           hasNewMessages = true;
+          print('New message ID detected: $lastNewMsgId vs $lastOldMsgId');
         }
       }
 
-      setState(() {
-        _messages = messages;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _messages = messages;
+          _isLoading = false;
+        });
+      }
 
       // Đánh dấu tin nhắn từ admin là đã đọc
-      ApiService.markMessagesAsRead(widget.userId, 'admin');
-
-      // Cuộn xuống tin nhắn cuối cùng nếu có tin nhắn mới
       if (hasNewMessages) {
+        print('Marking messages as read');
+        await ApiService.markMessagesAsRead(widget.userId, 'admin');
+        
+        // Cuộn xuống tin nhắn cuối cùng nếu có tin nhắn mới
         _scrollToBottom();
       }
     } catch (e) {
       print('Error loading messages: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -272,5 +300,7 @@ class _UserChatDetailState extends State<UserChatDetail> {
     );
   }
 }
+
+
 
 

@@ -1478,6 +1478,30 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
+// API lấy danh sách đơn hàng của người dùng
+app.get('/api/orders/user/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    const [orders] = await pool.query(
+      `SELECT o.*, 
+        (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
+       FROM orders o
+       WHERE o.user_id = ?
+       ORDER BY o.created_at DESC`,
+      [userId]
+    );
+    
+    res.json({
+      status: 'success',
+      data: orders
+    });
+  } catch (error) {
+    console.error('Error fetching user orders:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 // Cập nhật thông tin cá nhân (cho người dùng)
 app.put('/api/users/profile/:id', async (req, res) => {
   try {
@@ -1730,6 +1754,9 @@ app.get('/api/chat/messages/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
     
+    // Thêm log để debug
+    console.log(`Getting messages for user ${userId}`);
+    
     const [messages] = await pool.query(
       `SELECT * FROM chat_messages 
        WHERE user_id = ? 
@@ -1738,6 +1765,11 @@ app.get('/api/chat/messages/:userId', async (req, res) => {
     );
     
     console.log(`Retrieved ${messages.length} messages for user ${userId}`);
+    
+    // Thêm header để tránh cache
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
     res.json({
       status: 'success',
@@ -1815,10 +1847,17 @@ app.post('/api/chat/mark-read', async (req, res) => {
   try {
     const { userId, sender } = req.body;
     
+    console.log(`Marking messages as read for user ${userId}, sender ${sender}`);
+    
     await pool.query(
       'UPDATE chat_messages SET is_read = TRUE WHERE user_id = ? AND sender = ?',
       [userId, sender]
     );
+    
+    // Thêm header để tránh cache
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
     res.json({
       status: 'success',
@@ -1835,10 +1874,80 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
+// API để lấy chi tiết đơn hàng
+app.get('/api/orders/:id/details', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    // Lấy thông tin đơn hàng
+    const [orders] = await pool.query(
+      'SELECT * FROM orders WHERE id = ?',
+      [orderId]
+    );
+    
+    if (orders.length === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Order not found'
+      });
+    }
+    
+    // Lấy các mục trong đơn hàng với thông tin sản phẩm
+    const [items] = await pool.query(
+      `SELECT oi.*, p.name, p.image_url 
+       FROM order_items oi
+       LEFT JOIN products p ON oi.product_id = p.id
+       WHERE oi.order_id = ?`,
+      [orderId]
+    );
+    
+    res.json({
+      status: 'success',
+      data: {
+        order: orders[0],
+        items: items
+      }
+    });
+  } catch (error) {
+    console.error('Error getting order details:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+});
 
-
-
-
-
-
+// API để lấy các mục trong đơn hàng
+app.get('/api/orders/:id/items', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    // Lấy các mục trong đơn hàng
+    const [items] = await pool.query(
+      `SELECT oi.*, p.image_path 
+       FROM order_items oi
+       LEFT JOIN products p ON oi.product_id = p.id
+       WHERE oi.order_id = ?`,
+      [orderId]
+    );
+    
+    if (items.length === 0) {
+      return res.json({
+        status: 'success',
+        data: []
+      });
+    }
+    
+    res.json({
+      status: 'success',
+      data: items
+    });
+  } catch (error) {
+    console.error('Error getting order items:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+});
 

@@ -6,12 +6,10 @@ import 'dart:async';
 class AdminChatDetail extends StatefulWidget {
   final String userId;
   final String userName;
-  
-  const AdminChatDetail({
-    Key? key, 
-    required this.userId, 
-    required this.userName
-  }) : super(key: key);
+
+  const AdminChatDetail(
+      {Key? key, required this.userId, required this.userName})
+      : super(key: key);
 
   @override
   State<AdminChatDetail> createState() => _AdminChatDetailState();
@@ -28,13 +26,13 @@ class _AdminChatDetailState extends State<AdminChatDetail> {
   void initState() {
     super.initState();
     _loadMessages();
-    
+
     // Tự động làm mới tin nhắn mỗi 5 giây
-    _refreshTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+    _refreshTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       _loadMessages();
     });
   }
-  
+
   @override
   void dispose() {
     _refreshTimer?.cancel();
@@ -46,15 +44,15 @@ class _AdminChatDetailState extends State<AdminChatDetail> {
   Future<void> _loadMessages() async {
     try {
       final messages = await ApiService.getChatMessages(widget.userId);
-      
+
       setState(() {
         _messages = messages;
         _isLoading = false;
       });
-      
+
       // Đánh dấu tin nhắn từ user là đã đọc
       ApiService.markMessagesAsRead(widget.userId, 'user');
-      
+
       // Cuộn xuống tin nhắn cuối cùng
       _scrollToBottom();
     } catch (e) {
@@ -94,17 +92,18 @@ class _AdminChatDetailState extends State<AdminChatDetail> {
       'created_at': DateTime.now().toIso8601String(),
       'is_read': false
     };
-    
+
     setState(() {
       _messages.add(newMessage);
     });
-    
+
     _scrollToBottom();
 
     try {
       // Gửi tin nhắn lên server
-      final success = await ApiService.sendChatMessage(widget.userId, message, 'admin');
-      
+      final success =
+          await ApiService.sendChatMessage(widget.userId, message, 'admin');
+
       if (!success) {
         print('Failed to send message to server');
         // Có thể hiển thị thông báo lỗi ở đây
@@ -124,7 +123,7 @@ class _AdminChatDetailState extends State<AdminChatDetail> {
     final dateTime = DateTime.parse(dateTimeStr);
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inDays > 0) {
       return DateFormat('dd/MM/yyyy').format(dateTime);
     } else if (difference.inHours > 0) {
@@ -176,7 +175,8 @@ class _AdminChatDetailState extends State<AdminChatDetail> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               constraints: BoxConstraints(
-                                maxWidth: MediaQuery.of(context).size.width * 0.7,
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.7,
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,7 +184,8 @@ class _AdminChatDetailState extends State<AdminChatDetail> {
                                   Text(
                                     message['message'],
                                     style: TextStyle(
-                                      color: isAdmin ? Colors.white : Colors.black,
+                                      color:
+                                          isAdmin ? Colors.white : Colors.black,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -192,7 +193,9 @@ class _AdminChatDetailState extends State<AdminChatDetail> {
                                     _formatDateTime(message['created_at']),
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: isAdmin ? Colors.white70 : Colors.grey[600],
+                                      color: isAdmin
+                                          ? Colors.white70
+                                          : Colors.grey[600],
                                     ),
                                   ),
                                 ],
@@ -240,4 +243,3 @@ class _AdminChatDetailState extends State<AdminChatDetail> {
     );
   }
 }
-
