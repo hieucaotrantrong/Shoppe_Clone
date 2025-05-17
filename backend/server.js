@@ -493,7 +493,7 @@ app.get('/api/orders', async (req, res) => {
 // Cập nhật trạng thái đơn hàng
 app.put('/api/orders/:id/status', async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, reason } = req.body;
     const orderId = req.params.id;
 
     console.log(`Updating order #${orderId} status to: ${status}`);
@@ -503,8 +503,8 @@ app.put('/api/orders/:id/status', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Status is required' });
     }
 
-    // Kiểm tra trạng thái hợp lệ - đảm bảo khớp với ENUM trong database
-    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    // Kiểm tra trạng thái hợp lệ
+    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returning', 'returned'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         status: 'error',
@@ -512,63 +512,83 @@ app.put('/api/orders/:id/status', async (req, res) => {
       });
     }
 
-    // Kiểm tra xem đơn hàng có tồn tại không
+    // Lấy thông tin đơn hàng hiện tại
     const [orders] = await pool.query('SELECT * FROM orders WHERE id = ?', [orderId]);
     if (orders.length === 0) {
       return res.status(404).json({ status: 'error', message: 'Order not found' });
     }
-
     const order = orders[0];
 
-    // Lấy thông tin chi tiết đơn hàng để hiển thị tên sản phẩm
-    const [orderItems] = await pool.query(`
-      SELECT * FROM order_items WHERE order_id = ?
-    `, [orderId]);
-
-    // Tạo danh sách tên sản phẩm
-    const productNames = orderItems.map(item => item.name || `Sản phẩm #${item.product_id}`);
-
-    // Giới hạn số lượng sản phẩm hiển thị nếu quá nhiều
+    // Lấy thông tin sản phẩm trong đơn hàng để hiển thị trong thông báo
+    const [items] = await pool.query('SELECT * FROM order_items WHERE order_id = ?', [orderId]);
     let productText = '';
-    if (productNames.length > 0) {
-      if (productNames.length <= 2) {
-        productText = productNames.join(', ');
+    if (items.length > 0) {
+      if (items.length === 1) {
+        productText = items[0].name || `#${items[0].product_id}`;
       } else {
-        productText = `${productNames[0]}, ${productNames[1]} và ${productNames.length - 2} sản phẩm khác`;
+        productText = `(${items.length} sản phẩm)`;
       }
     }
 
-    // Cập nhật trạng thái
-    await pool.query(
-      'UPDATE orders SET status = ? WHERE id = ?',
-      [status, orderId]
-    );
+    // Cập nhật trạng thái và lý do trả hàng nếu có
+    if (status === 'returning' && reason) {
+      await pool.query(
+        'UPDATE orders SET status = ?, return_reason = ? WHERE id = ?',
+        [status, reason, orderId]
+      );
+    } else {
+      await pool.query(
+        'UPDATE orders SET status = ? WHERE id = ?',
+        [status, orderId]
+      );
+    }
+
+    // Cập nhật thời gian giao hàng nếu trạng thái là delivered
+    if (status === 'delivered') {
+      await pool.query(
+        'UPDATE orders SET delivered_at = NOW() WHERE id = ?',
+        [orderId]
+      );
+    }
 
     // Tạo thông báo cho người dùng về việc cập nhật trạng thái đơn hàng
     let title, message;
     switch (status) {
       case 'processing':
         title = 'Đơn hàng đang được xử lý';
-        message = `Đơn hàng ${productText} của bạn đang được  xử lý.`;
+        message = `Đơn hàng ${productText} của bạn đang được xử lý.`;
         break;
       case 'shipped':
         title = 'Đơn hàng đang được giao';
         message = `Đơn hàng ${productText} của bạn đang được giao đến bạn.`;
         break;
       case 'delivered':
-        title = 'Đơn hàng đã giao thành công';
-        message = `Đơn hàng ${productText} của bạn đã được giao thành công. Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!`;
+        if (order.status === 'returning') {
+          title = 'Yêu cầu trả hàng bị từ chối';
+          message = `Yêu cầu trả hàng cho đơn hàng ${productText} của bạn đã bị từ chối. Vui lòng liên hệ với chúng tôi để biết thêm chi tiết.`;
+        } else {
+          title = 'Đơn hàng đã giao thành công';
+          message = `Đơn hàng ${productText} của bạn đã được giao thành công. Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!`;
+        }
         break;
       case 'cancelled':
         title = 'Đơn hàng đã bị hủy';
         message = `Đơn hàng ${productText} của bạn đã bị hủy.`;
+        break;
+      case 'returning':
+        title = 'Yêu cầu trả hàng đã được ghi nhận';
+        message = `Yêu cầu trả hàng cho đơn hàng ${productText} của bạn đã được ghi nhận. Chúng tôi sẽ xem xét và phản hồi sớm.`;
+        break;
+      case 'returned':
+        title = 'Đơn hàng đã được trả thành công';
+        message = `Đơn hàng ${productText} của bạn đã được trả thành công. Tiền hoàn trả sẽ được chuyển lại cho bạn trong 3-5 ngày làm việc.`;
         break;
       default:
         title = 'Cập nhật trạng thái đơn hàng';
         message = `Đơn hàng ${productText} của bạn đã được cập nhật sang trạng thái ${status}.`;
     }
 
-    // Thêm thông báo vào database với cấu trúc bảng hiện tại
+    // Thêm thông báo vào database
     await pool.query(
       'INSERT INTO notifications (user_id, title, message, is_read) VALUES (?, ?, ?, ?)',
       [order.user_id, title, message, 0]
@@ -1981,8 +2001,113 @@ app.get('/api/orders/:id/items', async (req, res) => {
   }
 });
 
+// Thêm API endpoint để kiểm tra và sửa thông tin sản phẩm trong đơn hàng
+app.get('/api/debug/fix-order-items', async (req, res) => {
+  try {
+    // 1. Lấy danh sách đơn hàng có trạng thái returning
+    const [returningOrders] = await pool.query(`
+      SELECT id, status FROM orders 
+      WHERE status = 'returning'
+    `);
+    
+    console.log(`Found ${returningOrders.length} orders with returning status`);
+    
+    // 2. Lấy thông tin chi tiết các mục trong đơn hàng
+    let fixedItems = 0;
+    for (const order of returningOrders) {
+      const orderId = order.id;
+      
+      // Lấy các mục trong đơn hàng
+      const [items] = await pool.query(`
+        SELECT id, order_id, product_id, name 
+        FROM order_items 
+        WHERE order_id = ?
+      `, [orderId]);
+      
+      console.log(`Order #${orderId} has ${items.length} items`);
+      
+      // Kiểm tra và cập nhật tên sản phẩm nếu cần
+      for (const item of items) {
+        if (!item.name || item.name === '') {
+          // Tìm thông tin sản phẩm
+          const [products] = await pool.query(`
+            SELECT name FROM products WHERE id = ?
+          `, [item.product_id]);
+          
+          if (products.length > 0) {
+            // Cập nhật tên sản phẩm
+            await pool.query(`
+              UPDATE order_items SET name = ? WHERE id = ?
+            `, [products[0].name, item.id]);
+            
+            fixedItems++;
+            console.log(`Fixed item #${item.id} with product name: ${products[0].name}`);
+          } else {
+            // Nếu không tìm thấy sản phẩm, đặt tên mặc định
+            await pool.query(`
+              UPDATE order_items SET name = ? WHERE id = ?
+            `, [`Sản phẩm #${item.product_id}`, item.id]);
+            
+            fixedItems++;
+            console.log(`Fixed item #${item.id} with default name: Sản phẩm #${item.product_id}`);
+          }
+        }
+      }
+    }
+    
+    res.json({
+      status: 'success',
+      message: `Fixed ${fixedItems} items in returning orders`,
+      data: {
+        returningOrders,
+        fixedItems
+      }
+    });
+  } catch (error) {
+    console.error('Error fixing order items:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+});
 
+// API lấy tất cả đơn hàng
+app.get('/api/orders', async (req, res) => {
+  try {
+    // Lấy danh sách đơn hàng từ database
+    const [orders] = await pool.query(`
+      SELECT o.*, u.name as user_name
+      FROM orders o
+      LEFT JOIN users u ON o.user_id = u.id
+      WHERE 1=1
+     ORDER BY o.id DESC
+    `);
+    
+    console.log(`Found ${orders.length} orders`);
+    
+    // Log trạng thái của các đơn hàng để debug
+    orders.forEach(order => {
+      console.log(`Order #${order.id}: ${order.status} - ${order.total_amount}`);
+    });
 
+    // Lấy chi tiết sản phẩm cho mỗi đơn hàng
+    for (const order of orders) {
+      const [items] = await pool.query(
+        'SELECT * FROM order_items WHERE order_id = ?',
+        [order.id]
+      );
+      order.items = items;
+    }
+    
+    console.log(`Successfully parsed ${orders.length} orders`);
+    
+    res.json(orders);
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
 
 
 

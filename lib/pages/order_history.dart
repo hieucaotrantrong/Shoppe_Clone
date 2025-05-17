@@ -1,8 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:food_app/services/api_service.dart';
 import 'package:food_app/services/shared_pref.dart';
-import 'package:intl/intl.dart';
-import 'dart:async';
 
 class OrderHistory extends StatefulWidget {
   const OrderHistory({Key? key}) : super(key: key);
@@ -23,13 +23,10 @@ class _OrderHistoryState extends State<OrderHistory>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController =
+        TabController(length: 5, vsync: this); // Tăng length từ 4 lên 5
     _getUserInfo();
-
-    // Tự động làm mới danh sách đơn hàng mỗi 30 giây
-    Timer.periodic(Duration(seconds: 3), (timer) {
-      if (mounted) _fetchOrders();
-    });
+    _fetchOrders();
   }
 
   @override
@@ -465,6 +462,10 @@ class _OrderHistoryState extends State<OrderHistory>
         return 'Đã giao hàng';
       case 'cancelled':
         return 'Đã hủy';
+      case 'returning':
+        return 'Đang yêu cầu trả';
+      case 'returned':
+        return 'Đã trả hàng';
       default:
         return 'Không xác định';
     }
@@ -482,9 +483,279 @@ class _OrderHistoryState extends State<OrderHistory>
         return Colors.green;
       case 'cancelled':
         return Colors.red;
+      case 'returning':
+        return Colors.amber;
+      case 'returned':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
+  }
+
+  // Kiểm tra xem đơn hàng có thể trả hay không (đã giao và trong vòng 7 ngày)
+  bool _isOrderReturnable(Map<String, dynamic> order) {
+    // Kiểm tra trạng thái đơn hàng
+    if (order['status'] != 'delivered') {
+      return false;
+    }
+
+    // Kiểm tra thời gian
+    try {
+      final deliveredDate = DateTime.parse(
+          order['delivered_at'] ?? order['updated_at'] ?? order['created_at']);
+      final now = DateTime.now();
+      final difference = now.difference(deliveredDate).inDays;
+
+      // Chỉ cho phép trả hàng trong vòng 7 ngày
+      return difference <= 7;
+    } catch (e) {
+      print("Error checking returnable status: $e");
+      return false;
+    }
+  }
+
+  // Xây dựng danh sách đơn hàng có thể trả
+  Widget _buildReturnableOrderList() {
+    final returnableOrders =
+        _orders.where((order) => _isOrderReturnable(order)).toList();
+
+    if (returnableOrders.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.assignment_return, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Không có đơn hàng nào có thể trả',
+              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Chỉ đơn hàng đã giao trong vòng 7 ngày mới có thể trả',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: returnableOrders.length,
+      itemBuilder: (context, index) {
+        final order = returnableOrders[index];
+        final orderId = order['id'].toString();
+        final orderDate =
+            DateTime.parse(order['created_at'] ?? DateTime.now().toString());
+        final deliveredDate = DateTime.parse(order['delivered_at'] ??
+            order['updated_at'] ??
+            order['created_at']);
+
+        // Tính số ngày còn lại để trả hàng
+        final now = DateTime.now();
+        final daysLeft = 7 - now.difference(deliveredDate).inDays;
+
+        // Đảm bảo total_amount là một số hợp lệ
+        double totalAmount = 0;
+        try {
+          if (order['total_amount'] != null) {
+            totalAmount = double.parse(order['total_amount'].toString());
+          }
+        } catch (e) {
+          print("Error parsing total_amount: $e");
+        }
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Đơn hàng #$orderId',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Còn $daysLeft ngày để trả',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text('Ngày đặt: ${DateFormat('dd/MM/yyyy').format(orderDate)}'),
+                Text(
+                    'Ngày giao: ${DateFormat('dd/MM/yyyy').format(deliveredDate)}'),
+                const SizedBox(height: 8),
+                Text(
+                    'Tổng tiền: ${NumberFormat.currency(locale: 'vi_VN', symbol: '₫').format(totalAmount)}'),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _requestReturn(order);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Yêu cầu trả hàng'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Xử lý yêu cầu trả hàng
+  void _requestReturn(Map<String, dynamic> order) {
+    final orderId = order['id'].toString();
+    final items = _orderItems[orderId] ?? [];
+    String? selectedReason;
+
+    // Danh sách lý do trả hàng
+    final List<String> returnReasons = [
+      'Hàng lỗi, không hoạt động',
+      'Hàng hết hạn sử dụng',
+      'Khác với mô tả',
+      'Hàng đã qua sử dụng',
+      'Hàng giả, nhái',
+      'Hàng nguyên vẹn nhưng không còn như cầu (sẽ trả nguyên seal, tem, hộp sản phẩm)',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Yêu cầu trả hàng',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 16),
+                  Text('Chọn lý do trả hàng:'),
+                  SizedBox(height: 8),
+                  // Danh sách lý do
+                  ...returnReasons.map((reason) {
+                    return RadioListTile<String>(
+                      title: Text(reason),
+                      value: reason,
+                      groupValue: selectedReason,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedReason = value;
+                        });
+                      },
+                    );
+                  }).toList(),
+                  SizedBox(height: 16),
+                  // Nút xác nhận
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: selectedReason == null
+                          ? null
+                          : () async {
+                              Navigator.pop(context);
+                              try {
+                                setState(() {
+                                  _isLoading = true;
+                                });
+
+                                // Gọi API để cập nhật trạng thái đơn hàng thành "returning"
+                                final result = await ApiService.updateOrderStatus(
+                                    order['id'].toString(), 'returning',
+                                    reason: selectedReason);
+
+                                if (result != null &&
+                                    result['status'] == 'success') {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Đã gửi yêu cầu trả hàng thành công')),
+                                  );
+                                  _fetchOrders();
+                                } else {
+                                  setState(() {
+                                    _isLoading = false;
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(result != null &&
+                                                result['message'] != null
+                                            ? result['message']
+                                            : 'Không thể gửi yêu cầu trả hàng')),
+                                  );
+                                }
+                              } catch (e) {
+                                print("Error requesting return: $e");
+                                setState(() {
+                                  _isLoading = false;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text('Lỗi: $e')),
+                                );
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey[300],
+                      ),
+                      child: Text('Xác nhận'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -505,11 +776,13 @@ class _OrderHistoryState extends State<OrderHistory>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
+          isScrollable: true, // Cho phép cuộn nếu có nhiều tab
           tabs: const [
             Tab(text: 'Chờ xác nhận'),
             Tab(text: 'Đang xử lý'),
             Tab(text: 'Đang giao'),
             Tab(text: 'Đã giao'),
+            Tab(text: 'Trả hàng'),
           ],
         ),
       ),
@@ -546,8 +819,11 @@ class _OrderHistoryState extends State<OrderHistory>
                     _buildOrderList('processing'),
                     _buildOrderList('shipped'),
                     _buildOrderList('delivered'),
+                    _buildReturnableOrderList(),
                   ],
                 ),
     );
   }
 }
+
+

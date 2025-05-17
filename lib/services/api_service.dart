@@ -277,37 +277,34 @@ class ApiService {
 
   // Cập nhật trạng thái đơn hàng
   static Future<Map<String, dynamic>?> updateOrderStatus(
-      String orderId, String status) async {
+      String orderId, String status, {String? reason}) async {
     try {
-      // Sử dụng baseUrl thay vì getBaseUrl()
-      print('Using baseUrl: $baseUrl');
-
       final url = '$baseUrl/orders/$orderId/status';
-      print('API URL: $url');
-      print('Updating order status: orderId=$orderId, status=$status');
-
-      // Đảm bảo body đúng định dạng
-      final body = json.encode({'status': status});
-      print('Request body: $body');
-
+      print('Calling API: $url');
+      
+      // Tạo body request với lý do nếu có
+      final Map<String, dynamic> requestBody = {
+        'status': status,
+      };
+      
+      // Thêm lý do nếu có
+      if (reason != null && reason.isNotEmpty) {
+        requestBody['reason'] = reason;
+      }
+      
       final response = await http
           .put(
             Uri.parse(url),
             headers: {'Content-Type': 'application/json'},
-            body: body,
+            body: json.encode(requestBody),
           )
-          .timeout(const Duration(seconds: 30));
-
-      print('API response status code: ${response.statusCode}');
-      print('API response body: ${response.body}');
+          .timeout(requestTimeout);
 
       if (response.statusCode == 200) {
-        final result = json.decode(response.body);
-        print('Successfully updated order status: $result');
-        return result;
+        return json.decode(response.body);
       } else {
-        print('Order status update failed: ${response.statusCode}');
-        print('Response: ${response.body}');
+        print('Failed to update order status: ${response.statusCode}');
+        print('Response body: ${response.body}');
         return null;
       }
     } catch (e) {
@@ -901,3 +898,4 @@ class ApiService {
     }
   }
 }
+

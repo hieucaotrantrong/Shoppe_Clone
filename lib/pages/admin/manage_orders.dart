@@ -11,21 +11,21 @@ class ManageOrders extends StatefulWidget {
 }
 
 class _ManageOrdersState extends State<ManageOrders> {
-  late Future<List<Map<String, dynamic>>> _ordersFuture;
   bool _isLoading = false;
+  late Future<List<Map<String, dynamic>>> _ordersFuture;
   Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _refreshOrders();
-    
-    // Tự động làm mới danh sách đơn hàng mỗi 30 giây
-    _refreshTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    _ordersFuture = ApiService.getAllOrders();
+
+    // Tự động làm mới dữ liệu mỗi 30 giây
+    _refreshTimer = Timer.periodic(Duration(seconds: 5), (timer) {
       _refreshOrders();
     });
   }
-  
+
   @override
   void dispose() {
     _refreshTimer?.cancel();
@@ -37,12 +37,13 @@ class _ManageOrdersState extends State<ManageOrders> {
       _isLoading = true;
       _ordersFuture = ApiService.getAllOrders();
     });
-    
+
     try {
       final orders = await _ordersFuture;
       print('Fetched ${orders.length} orders');
       for (var order in orders) {
-        print('Order #${order['id']}: ${order['total_amount']} - ${order['status']}');
+        print(
+            'Order #${order['id']}: ${order['total_amount']} - ${order['status']}');
         if (order['items'] != null) {
           print('  Items: ${order['items'].length}');
         } else {
@@ -74,18 +75,28 @@ class _ManageOrdersState extends State<ManageOrders> {
       }
 
       // Đảm bảo status là một trong các giá trị hợp lệ
-      final validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+      final validStatuses = [
+        'pending',
+        'processing',
+        'shipped',
+        'delivered',
+        'cancelled',
+        'returning',
+        'returned'
+      ];
       if (!validStatuses.contains(newStatus)) {
         throw Exception('Invalid status: $newStatus');
       }
 
       final result = await ApiService.updateOrderStatus(orderId, newStatus);
-      
+
       print('Update result: $result');
 
       if (result != null && result['status'] == 'success') {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Trạng thái đơn hàng đã được cập nhật thành $newStatus')),
+          SnackBar(
+              content: Text(
+                  'Trạng thái đơn hàng đã được cập nhật thành $newStatus')),
         );
         _refreshOrders();
       } else {
@@ -93,7 +104,7 @@ class _ManageOrdersState extends State<ManageOrders> {
         if (result != null && result['message'] != null) {
           errorMessage += ': ${result['message']}';
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
         );
@@ -124,6 +135,10 @@ class _ManageOrdersState extends State<ManageOrders> {
         return 'Đã giao hàng';
       case 'cancelled':
         return 'Đã hủy';
+      case 'returning':
+        return 'Đang yêu cầu trả';
+      case 'returned':
+        return 'Đã trả hàng';
       default:
         return 'Không xác định';
     }
@@ -141,6 +156,10 @@ class _ManageOrdersState extends State<ManageOrders> {
         return Colors.green;
       case 'cancelled':
         return Colors.red;
+      case 'returning':
+        return Colors.deepPurple;
+      case 'returned':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
@@ -157,6 +176,7 @@ class _ManageOrdersState extends State<ManageOrders> {
           IconButton(
             icon: Icon(Icons.refresh),
             onPressed: _refreshOrders,
+            tooltip: 'Làm mới dữ liệu',
           ),
         ],
       ),
@@ -179,33 +199,34 @@ class _ManageOrdersState extends State<ManageOrders> {
 
                 final orders = snapshot.data!;
                 print('Building UI for ${orders.length} orders');
-                
+
                 return ListView.builder(
                   itemCount: orders.length,
                   itemBuilder: (context, index) {
                     final order = orders[index];
                     print('Rendering order: $order');
-                    
+
                     // Xử lý ngày đặt hàng an toàn
                     DateTime orderDate;
                     try {
-                      final dateString = order['created_at'] ?? order['order_date'];
-                      orderDate = dateString != null 
-                          ? DateTime.parse(dateString.toString()) 
+                      final dateString =
+                          order['created_at'] ?? order['order_date'];
+                      orderDate = dateString != null
+                          ? DateTime.parse(dateString.toString())
                           : DateTime.now();
                     } catch (e) {
                       print('Error parsing date: $e');
                       orderDate = DateTime.now();
                     }
-                    
+
                     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-                    
+
                     // Xử lý trạng thái đơn hàng an toàn
                     final status = order['status'] ?? 'pending';
-                    
+
                     // Xử lý tên người dùng an toàn
                     final userName = order['user_name'] ?? 'Không xác định';
-                    
+
                     return Card(
                       margin: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
                       elevation: 2,
@@ -258,25 +279,30 @@ class _ManageOrdersState extends State<ManageOrders> {
                                   style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 SizedBox(height: 10),
-                                if (order['items'] != null && order['items'] is List && (order['items'] as List).isNotEmpty)
+                                if (order['items'] != null &&
+                                    order['items'] is List &&
+                                    (order['items'] as List).isNotEmpty)
                                   ...List.generate(
                                     (order['items'] as List).length,
                                     (i) {
                                       final item = (order['items'] as List)[i];
                                       // Ưu tiên sử dụng tên sản phẩm từ product_name nếu có
-                                      final itemName = item['product_name'] ?? 
-                                                       item['name'] ?? 
-                                                       'Sản phẩm không xác định';
-                                      final itemQuantity = item['quantity'] ?? 1;
+                                      final itemName = item['product_name'] ??
+                                          item['name'] ??
+                                          'Sản phẩm không xác định';
+                                      final itemQuantity =
+                                          item['quantity'] ?? 1;
                                       final itemPrice = item['price'] ?? 0;
-                                      
+
                                       return Padding(
                                         padding: EdgeInsets.only(bottom: 5),
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text('$itemQuantity x $itemName'),
-                                            Text('₫${itemPrice * itemQuantity}'),
+                                            Text(
+                                                '₫${itemPrice * itemQuantity}'),
                                           ],
                                         ),
                                       );
@@ -285,55 +311,24 @@ class _ManageOrdersState extends State<ManageOrders> {
                                 else
                                   Text('Không có thông tin chi tiết sản phẩm'),
                                 SizedBox(height: 10),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    ElevatedButton(
-                                      onPressed: () => _updateOrderStatus(order['id'].toString(), 'processing'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blue,
-                                        foregroundColor: Colors.white,
-                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        minimumSize: Size(80, 30),
-                                        textStyle: TextStyle(fontSize: 12),
-                                      ),
-                                      child: Text('Đang xử lý'),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () => _updateOrderStatus(order['id'].toString(), 'shipped'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.purple,
-                                        foregroundColor: Colors.white,
-                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        minimumSize: Size(80, 30),
-                                        textStyle: TextStyle(fontSize: 12),
-                                      ),
-                                      child: Text('Đang giao'),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () => _updateOrderStatus(order['id'].toString(), 'delivered'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        foregroundColor: Colors.white,
-                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        minimumSize: Size(80, 30),
-                                        textStyle: TextStyle(fontSize: 12),
-                                      ),
-                                      child: Text('Đã giao'),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () => _updateOrderStatus(order['id'].toString(), 'cancelled'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        foregroundColor: Colors.white,
-                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        minimumSize: Size(80, 30),
-                                        textStyle: TextStyle(fontSize: 12),
-                                      ),
-                                      child: Text('Hủy'),
-                                    ),
-                                  ],
-                                ),
+                                // Hiển thị lý do trả hàng nếu có
+                                if (status == 'returning' &&
+                                    order['return_reason'] != null)
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Divider(),
+                                      Text('Lý do trả hàng:',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold)),
+                                      Text('${order['return_reason']}'),
+                                      SizedBox(height: 10),
+                                    ],
+                                  ),
+                                // Thêm các nút hành động
+                                SizedBox(height: 10),
+                                _buildActionButtons(order),
                               ],
                             ),
                           ),
@@ -347,28 +342,29 @@ class _ManageOrdersState extends State<ManageOrders> {
     );
   }
 
-  Widget _buildStatusButton(String orderId, String status, String label, Color color) {
+  Widget _buildStatusButton(
+      String orderId, String status, String label, Color color) {
     // Lấy trạng thái hiện tại của đơn hàng
     final currentStatus = _getCurrentOrderStatus(orderId);
-    
+
     // Kiểm tra xem nút có nên bị vô hiệu hóa không
     bool isDisabled = false;
-    
+
     // Nếu đơn hàng đã bị hủy, vô hiệu hóa tất cả các nút khác
     if (currentStatus == 'cancelled' && status != 'cancelled') {
       isDisabled = true;
     }
-    
+
     // Nếu đơn hàng đã giao, vô hiệu hóa tất cả các nút khác
     if (currentStatus == 'delivered' && status != 'delivered') {
       isDisabled = true;
     }
-    
+
     // Nếu đơn hàng đang ở trạng thái hiện tại, vô hiệu hóa nút đó
     if (currentStatus == status) {
       isDisabled = true;
     }
-    
+
     return ElevatedButton(
       onPressed: isDisabled ? null : () => _updateOrderStatus(orderId, status),
       style: ElevatedButton.styleFrom(
@@ -387,10 +383,10 @@ class _ManageOrdersState extends State<ManageOrders> {
     try {
       final orders = _ordersFuture as Future<List<Map<String, dynamic>>>;
       final ordersList = orders.then((list) {
-        return list.firstWhere((order) => order['id'].toString() == orderId, 
-                              orElse: () => {'status': 'pending'});
+        return list.firstWhere((order) => order['id'].toString() == orderId,
+            orElse: () => {'status': 'pending'});
       });
-      
+
       // Vì không thể đồng bộ truy cập Future, trả về giá trị mặc định
       return 'pending';
     } catch (e) {
@@ -398,16 +394,82 @@ class _ManageOrdersState extends State<ManageOrders> {
       return 'pending';
     }
   }
+
+  Widget _buildActionButtons(Map<String, dynamic> order) {
+    final status = order['status'] ?? '';
+
+    // Nếu đơn hàng đang yêu cầu trả
+    if (status == 'returning') {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          ElevatedButton(
+            onPressed: () =>
+                _updateOrderStatus(order['id'].toString(), 'returned'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size(100, 30),
+              textStyle: TextStyle(fontSize: 12),
+            ),
+            child: Text('Chấp nhận trả'),
+          ),
+          ElevatedButton(
+            onPressed: () =>
+                _updateOrderStatus(order['id'].toString(), 'delivered'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size(100, 30),
+              textStyle: TextStyle(fontSize: 12),
+            ),
+            child: Text('Từ chối trả'),
+          ),
+        ],
+      );
+    }
+
+    // Các trạng thái khác
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        // Các nút khác tùy theo trạng thái
+        if (status == 'pending')
+          _buildStatusButton(
+              order['id'].toString(), 'processing', 'Xác nhận', Colors.blue),
+        if (status == 'processing')
+          _buildStatusButton(
+              order['id'].toString(), 'shipped', 'Giao hàng', Colors.purple),
+        if (status == 'shipped')
+          _buildStatusButton(
+              order['id'].toString(), 'delivered', 'Đã giao', Colors.green),
+        if (status != 'cancelled' && status != 'returned')
+          _buildStatusButton(
+              order['id'].toString(), 'cancelled', 'Hủy', Colors.red),
+      ],
+    );
+  }
+
+  void _showOrderDetails(Map<String, dynamic> order) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Chi tiết đơn hàng #${order['id']}',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 10),
+              // Thêm các thông tin chi tiết đơn hàng
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
-
-
-
-
-
-
-
-
-
-
-
-
