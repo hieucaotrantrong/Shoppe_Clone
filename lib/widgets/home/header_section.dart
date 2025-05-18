@@ -30,37 +30,37 @@ class HeaderSection extends StatefulWidget {
 class _HeaderSectionState extends State<HeaderSection> {
   int _unreadMessageCount = 0;
   Timer? _refreshTimer;
-  
+
   @override
   void initState() {
     super.initState();
     _checkUnreadMessages();
-    
+
     // Thêm timer để tự động kiểm tra tin nhắn mới mỗi 10 giây
     _refreshTimer = Timer.periodic(Duration(seconds: 10), (timer) {
       _checkUnreadMessages();
     });
   }
-  
+
   @override
   void dispose() {
     _refreshTimer?.cancel();
     super.dispose();
   }
-  
+
   Future<void> _checkUnreadMessages() async {
     final userId = await SharedPreferenceHelper().getUserId();
     if (userId != null) {
       try {
         final messages = await ApiService.getChatMessages(userId);
-        
+
         int unreadCount = 0;
         for (var msg in messages) {
           if (msg['sender'] == 'admin' && msg['is_read'] == false) {
             unreadCount++;
           }
         }
-        
+
         if (mounted) {
           setState(() {
             _unreadMessageCount = unreadCount;
@@ -77,7 +77,7 @@ class _HeaderSectionState extends State<HeaderSection> {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 50, 20, 0),
       decoration: const BoxDecoration(
-        color: Color.fromARGB(255, 240, 245, 181),
+        color: Color(0xFFff5722),
         boxShadow: [
           BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(0, 2))
         ],
@@ -104,6 +104,7 @@ class _HeaderSectionState extends State<HeaderSection> {
             Text(
               "Hello, ${widget.userName ?? 'User'}",
               style: const TextStyle(
+                color: Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -113,7 +114,7 @@ class _HeaderSectionState extends State<HeaderSection> {
               "Chào mừng bạn đến với Shoppe",
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.black54,
+                color: Colors.white,
               ),
             ),
           ],
@@ -127,7 +128,6 @@ class _HeaderSectionState extends State<HeaderSection> {
                 builder: (context) => const ChatPage(),
               ),
             ).then((_) {
-              // Cập nhật lại số tin nhắn chưa đọc sau khi quay lại
               _checkUnreadMessages();
             });
           },
@@ -136,18 +136,20 @@ class _HeaderSectionState extends State<HeaderSection> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color.fromARGB(221, 244, 235, 170),
+                  color: Colors.white
+                      .withOpacity(0.2), // Đổi màu nền thành trắng trong suốt
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color.fromARGB(255, 222, 211, 143).withOpacity(0.1),
+                      color: Colors.black.withOpacity(0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: const Icon(Icons.message_outlined,
-                    color: Color.fromARGB(255, 240, 134, 95), size: 28),
+                    color: Colors.white, // Đổi màu icon thành trắng
+                    size: 28),
               ),
               if (_unreadMessageCount > 0)
                 Positioned(
@@ -193,9 +195,9 @@ class _HeaderSectionState extends State<HeaderSection> {
         onChanged: widget.handleSearch,
         decoration: InputDecoration(
           border: InputBorder.none,
-          icon: Icon(Icons.search, color: Colors.grey[600]),
+          icon: Icon(Icons.search, color: Colors.grey),
           hintText: "Tìm kiếm",
-          hintStyle: TextStyle(color: Colors.grey[500]),
+          hintStyle: TextStyle(color: Colors.red),
           suffixIcon: widget.searchQuery.isNotEmpty
               ? IconButton(
                   icon: Icon(Icons.clear, color: Colors.grey[600]),
@@ -210,7 +212,3 @@ class _HeaderSectionState extends State<HeaderSection> {
     );
   }
 }
-
-
-
-

@@ -26,7 +26,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _getUserInfo();
-    
+
     // Thêm timer để tự động làm mới danh sách chat mỗi 1 giây
     _refreshTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (mounted) {
@@ -34,14 +34,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       }
     });
   }
-  
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     super.dispose();
   }
-  
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -54,12 +54,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     try {
       final userId = await SharedPreferenceHelper().getUserId();
       final userName = await SharedPreferenceHelper().getUserName();
-      
+
       setState(() {
         _userId = userId;
         _userName = userName;
       });
-      
+
       await _loadChatHistory();
     } catch (e) {
       print('Error loading user info: $e');
@@ -77,38 +77,41 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       });
       return;
     }
-    
+
     try {
       print('Loading chat history for user: $_userId');
       final messages = await ApiService.getChatMessages(_userId!);
-      
+
       // Tính số tin nhắn chưa đọc từ admin
       int unreadCount = 0;
       String lastMessage = '';
       String lastMessageTime = DateTime.now().toIso8601String();
-      
+
       if (messages.isNotEmpty) {
         lastMessage = messages.last['message'] ?? '';
-        lastMessageTime = messages.last['created_at'] ?? DateTime.now().toIso8601String();
-        
+        lastMessageTime =
+            messages.last['created_at'] ?? DateTime.now().toIso8601String();
+
         for (var msg in messages) {
           if (msg['sender'] == 'admin' && msg['is_read'] == false) {
             unreadCount++;
           }
         }
       }
-      
+
       print('Unread count: $unreadCount, Last message: $lastMessage');
-      
+
       setState(() {
-        _chatHistory = [{
-          'user_id': _userId,
-          'user_name': _userName ?? 'Bạn',
-          'last_message': lastMessage,
-          'last_message_time': lastMessageTime,
-          'unread_count': unreadCount,
-          'has_messages': messages.isNotEmpty
-        }];
+        _chatHistory = [
+          {
+            'user_id': _userId,
+            'user_name': _userName ?? 'Bạn',
+            'last_message': lastMessage,
+            'last_message_time': lastMessageTime,
+            'unread_count': unreadCount,
+            'has_messages': messages.isNotEmpty
+          }
+        ];
         _isLoading = false;
       });
     } catch (e) {
@@ -205,7 +208,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.chat_bubble_outline,
-                          size: 80, color: Colors.grey[400]),
+                          size: 80, color: Colors.white),
                       const SizedBox(height: 16),
                       Text(
                         'Bạn chưa có cuộc trò chuyện nào',
@@ -331,5 +334,3 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     return _chatHistory[0]['unread_count'] ?? 0;
   }
 }
-
-

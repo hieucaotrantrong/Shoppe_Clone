@@ -37,14 +37,16 @@ class _BottomNavState extends State<BottomNav> {
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,
         height: 60,
-        backgroundColor: const Color.fromARGB(255, 235, 238, 176),
-        color: const Color.fromARGB(255, 207, 210, 150),
+        backgroundColor: Color(0xFFff5722),
+        color: const Color.fromARGB(255, 239, 178, 159),
         animationDuration: const Duration(milliseconds: 300),
         onTap: (index) {
-          if (index == 1) { // Giả sử index 1 là giỏ hàng
+          if (index == 1) {
+            // Giả sử index 1 là giỏ hàng
             // Lấy danh sách sản phẩm từ CartProvider
-            final cartItems = Provider.of<CartProvider>(context, listen: false).cartItems;
-            
+            final cartItems =
+                Provider.of<CartProvider>(context, listen: false).cartItems;
+
             // Chuyển đến trang Order và truyền danh sách sản phẩm
             Navigator.push(
               context,
@@ -126,14 +128,3 @@ class _BottomNavState extends State<BottomNav> {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
