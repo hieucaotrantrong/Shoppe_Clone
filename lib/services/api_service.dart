@@ -8,6 +8,7 @@ import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   // Cập nhật baseUrl để không có "api/" ở cuối
+  // static const String baseUrl = 'http://10.0.2.2:3001/api';
   static const String baseUrl = 'http://localhost:3001/api';
   static const Duration requestTimeout = Duration(seconds: 10);
 
@@ -868,19 +869,18 @@ class ApiService {
     }
   }
 
-  // Cập nhật hàm để lấy các mục trong đơn hàng - sửa đường dẫn API
+  // Cập nhật hàm để lấy các mục trong đơn hàng
   static Future<List<Map<String, dynamic>>> getOrderItems(String orderId) async {
     try {
-      // Sửa đường dẫn API - bỏ "api/" nếu server không có prefix này
       final response = await http
           .get(
-            Uri.parse('$baseUrl/orders/$orderId/items'),
+            Uri.parse('$baseUrl/api/orders/$orderId/items'),
             headers: {'Content-Type': 'application/json'},
           )
           .timeout(requestTimeout);
 
       print('Order items response status: ${response.statusCode}');
-      print('Response body: ${response.body.substring(0, min(100, response.body.length))}...');
+      print('Response body: ${response.body.substring(0, min(200, response.body.length))}...');
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
@@ -890,6 +890,10 @@ class ApiService {
           // Nếu response có dạng {status: success, data: [...]}
           final List<dynamic> items = responseData['data'];
           return items.map((item) => item as Map<String, dynamic>).toList();
+        } else if (responseData is Map && responseData.containsKey('status')) {
+          // Nếu response có dạng {status: success} nhưng không có data
+          print('API returned success but no data');
+          return [];
         } else if (responseData is List) {
           // Nếu response trực tiếp là một mảng
           return responseData.map((item) => item as Map<String, dynamic>).toList();
@@ -898,10 +902,8 @@ class ApiService {
           print('Unexpected response format: ${responseData.runtimeType}');
           return [];
         }
-      } else {
-        print('Error status code: ${response.statusCode}');
-        return [];
       }
+      return [];
     } catch (e) {
       print('Error getting order items: $e');
       return [];

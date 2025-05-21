@@ -2,26 +2,22 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const bcrypt = require('bcrypt'); // Thêm bcrypt
+const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-
 const app = express();
 const port = process.env.PORT || 3001;
-const saltRounds = 10; // Số vòng băm cho bcrypt
-
-// Middleware
-app.use(cors()); // Thêm middleware CORS
+const saltRounds = 10;
+/*---------------------------------
+Middleware
+-----------------------------------*/
+app.use(cors());
 app.use(bodyParser.json());
 
-// Thêm log chi tiết hơn
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  next();
-});
-
-// Kết nối MySQL
+/*---------------------------------
+Connect Db Mysql Workbend
+-----------------------------------*/
 const pool = mysql.createPool({
   host: 'localhost',
   user: 'root',
@@ -44,10 +40,13 @@ async function testDatabaseConnection() {
   }
 }
 
-// Khai báo biến server ở phạm vi toàn cục
+/*---------------------------------
+- Start Server
+-----------------------------------*/
 let server;
+/*---------------------------------
 
-// Khởi động server sau khi kiểm tra kết nối
+-----------------------------------*/
 async function startServer() {
   const dbConnected = await testDatabaseConnection();
 
@@ -67,7 +66,9 @@ async function startServer() {
 startServer();
 
 let isShuttingDown = false;
+/*---------------------------------
 
+-----------------------------------*/
 process.on('SIGTERM', async () => {
   if (isShuttingDown) return;
   isShuttingDown = true;
@@ -111,7 +112,7 @@ process.on('SIGINT', async () => {
       process.exit(0);
     });
 
-    // Đảm bảo thoát sau 5 giây nếu server không đóng đúng cách
+
     setTimeout(() => {
       console.log('Forcing exit after timeout');
       process.exit(1);
@@ -121,18 +122,20 @@ process.on('SIGINT', async () => {
   }
 });
 
-// Thêm xử lý lỗi tổng quát
+
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-  // Không tắt server ngay lập tức khi có lỗi
+
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Không tắt server ngay lập tức khi có lỗi
-});
 
-// Thêm API endpoint để lấy thông tin người dùng
+});
+/*---------------------------------
+- Thêm API endpoint để lấy thông 
+tin người dùng
+-----------------------------------*/
 app.get('/api/users/:id', async (req, res) => {
   try {
     const userId = req.params.id;
@@ -161,7 +164,9 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
-// Đăng nhập
+/*---------------------------------
+-Login Api
+-----------------------------------*/
 app.post('/api/users/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -170,7 +175,9 @@ app.post('/api/users/login', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Email and password are required' });
     }
 
-    // Tìm người dùng theo email
+    /*---------------------------------
+    Find user by email
+    -----------------------------------*/
     const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
 
     if (users.length === 0) {
@@ -191,7 +198,7 @@ app.post('/api/users/login', async (req, res) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role || 'user', // Mặc định là 'user' nếu không có role
+      role: user.role || 'user',
     };
 
     res.json({ status: 'success', message: 'Login successful', data: userData });
@@ -201,7 +208,9 @@ app.post('/api/users/login', async (req, res) => {
   }
 });
 
-// Đăng ký
+/*---------------------------------
+-Singnup Api
+-----------------------------------*/
 app.post('/api/users/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -242,7 +251,10 @@ app.post('/api/users/register', async (req, res) => {
   }
 });
 
-// API tạo đơn hàng mới
+/*---------------------------------
+- Create order by (user)
+-----------------------------------*/
+
 app.post('/api/orders', async (req, res) => {
   try {
     const { user_id, total_amount, items } = req.body;
@@ -349,7 +361,10 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
-// API thay đổi mật khẩu
+/*---------------------------------
+- Api change password
+-----------------------------------*/
+
 app.put('/api/users/:id/password', async (req, res) => {
   try {
     const userId = req.params.id;
@@ -361,7 +376,9 @@ app.put('/api/users/:id/password', async (req, res) => {
         message: 'Current password and new password are required'
       });
     }
-
+    /*---------------------------------
+       - 
+    -----------------------------------*/
     // Lấy thông tin người dùng
     const [users] = await pool.query(
       'SELECT * FROM users WHERE id = ?',
@@ -376,7 +393,9 @@ app.put('/api/users/:id/password', async (req, res) => {
     }
 
     const user = users[0];
-
+    /*---------------------------------
+       - 
+    -----------------------------------*/
     // Kiểm tra mật khẩu hiện tại
     const passwordMatch = await bcrypt.compare(currentPassword, user.password);
 
@@ -386,10 +405,14 @@ app.put('/api/users/:id/password', async (req, res) => {
         message: 'Current password is incorrect'
       });
     }
-
+    /*---------------------------------
+       - 
+       -----------------------------------*/
     // Mã hóa mật khẩu mới
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-
+    /*---------------------------------
+    - 
+    -----------------------------------*/
     // Cập nhật mật khẩu
     await pool.query(
       'UPDATE users SET password = ? WHERE id = ?',
@@ -408,9 +431,9 @@ app.put('/api/users/:id/password', async (req, res) => {
   }
 });
 
-// API endpoints cho đơn hàng
-
-// Lấy tất cả đơn hàng (cho admin)
+/*---------------------------------
+- Get all orders by (admin)
+-----------------------------------*/
 app.get('/api/orders', async (req, res) => {
   try {
     const { user_id, status } = req.query;
@@ -434,37 +457,19 @@ app.get('/api/orders', async (req, res) => {
       params.push(status);
     }
 
-    // Sắp xếp theo id giảm dần (đơn hàng mới nhất trước)
     query += ' ORDER BY o.id DESC';
 
-    console.log('Orders query:', query);
-
     const [orders] = await pool.query(query, params);
-    console.log(`Found ${orders.length} orders`);
 
-    // Lấy chi tiết đơn hàng cho mỗi đơn hàng
+    // Lấy chi tiết sản phẩm cho mỗi đơn hàng
     const ordersWithItems = await Promise.all(orders.map(async (order) => {
-      // Lấy thông tin chi tiết đơn hàng kèm tên sản phẩm
-      const [items] = await pool.query(`
-        SELECT oi.*, p.name as product_name, p.image_path 
-        FROM order_items oi
-        LEFT JOIN products p ON oi.product_id = p.id
-        WHERE oi.order_id = ?
-      `, [order.id]);
-
-      console.log(`Order #${order.id} has ${items.length} items`);
+      const [items] = await pool.query(
+        'SELECT oi.*, p.name as product_name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?',
+        [order.id]
+      );
 
       // Sử dụng tên sản phẩm từ order_items hoặc từ products
       const itemsWithNames = items.map(item => {
-        // In ra thông tin để debug
-        console.log(`Item in order #${order.id}:`, {
-          id: item.id,
-          product_id: item.product_id,
-          name: item.name,
-          product_name: item.product_name
-        });
-
-        // Ưu tiên sử dụng tên từ bảng products nếu có
         return {
           ...item,
           name: item.product_name || item.name || 'Sản phẩm không xác định'
@@ -489,8 +494,9 @@ app.get('/api/orders', async (req, res) => {
     });
   }
 });
-
-// Cập nhật trạng thái đơn hàng
+/*---------------------------------
+- Api Update status order
+-----------------------------------*/
 app.put('/api/orders/:id/status', async (req, res) => {
   try {
     const { status, reason } = req.body;
@@ -604,116 +610,9 @@ app.put('/api/orders/:id/status', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message || 'Internal server error' });
   }
 });
-
-// Tạo đơn hàng mới
-app.post('/api/orders', async (req, res) => {
-  try {
-    const { user_id, total_amount, items } = req.body;
-
-    console.log('Received order request:', JSON.stringify({ user_id, total_amount, items }, null, 2));
-
-    if (!user_id || !total_amount || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ status: 'error', message: 'Invalid order data' });
-    }
-
-    // Bắt đầu transaction
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
-
-    try {
-      // Tạo đơn hàng
-      const [orderResult] = await connection.query(
-        'INSERT INTO orders (user_id, total_amount, status) VALUES (?, ?, ?)',
-        [user_id, total_amount, 'pending']
-      );
-
-      const orderId = orderResult.insertId;
-
-      // Thêm các sản phẩm vào đơn hàng
-      for (const item of items) {
-        // Đảm bảo product_id là số nguyên
-        const productId = parseInt(item.product_id || item.id);
-
-        if (isNaN(productId)) {
-          throw new Error(`Invalid product ID: ${item.product_id || item.id}`);
-        }
-
-        const quantity = parseInt(item.quantity) || 1;
-        const price = parseFloat(item.price) || 0;
-
-        // Lấy tên sản phẩm từ request
-        const productName = item.name;
-
-        console.log(`Adding item to order #${orderId}:`, {
-          product_id: productId,
-          name: productName,
-          quantity: quantity,
-          price: price
-        });
-
-        // Kiểm tra xem tên sản phẩm có null không
-        if (!productName) {
-          console.warn(`Warning: Product name is null for product_id ${productId}`);
-
-          // Nếu tên sản phẩm null, thử lấy từ bảng products
-          const [products] = await connection.query(
-            'SELECT name FROM products WHERE id = ?',
-            [productId]
-          );
-
-          if (products.length > 0 && products[0].name) {
-            console.log(`Found product name from database: ${products[0].name}`);
-            await connection.query(
-              'INSERT INTO order_items (order_id, product_id, name, quantity, price) VALUES (?, ?, ?, ?, ?)',
-              [orderId, productId, products[0].name, quantity, price]
-            );
-          } else {
-            // Nếu không tìm thấy, sử dụng ID sản phẩm
-            const fallbackName = `Sản phẩm #${productId}`;
-            console.log(`Using fallback name: ${fallbackName}`);
-            await connection.query(
-              'INSERT INTO order_items (order_id, product_id, name, quantity, price) VALUES (?, ?, ?, ?, ?)',
-              [orderId, productId, fallbackName, quantity, price]
-            );
-          }
-        } else {
-          // Nếu có tên sản phẩm, sử dụng nó
-          await connection.query(
-            'INSERT INTO order_items (order_id, product_id, name, quantity, price) VALUES (?, ?, ?, ?, ?)',
-            [orderId, productId, productName, quantity, price]
-          );
-        }
-      }
-
-      // Commit transaction
-      await connection.commit();
-      connection.release();
-
-      res.status(201).json({
-        status: 'success',
-        message: 'Order created successfully',
-        data: {
-          order_id: orderId,
-          user_id,
-          total_amount,
-          items
-        }
-      });
-    } catch (error) {
-      // Rollback nếu có lỗi
-      await connection.rollback();
-      connection.release();
-      console.error('Transaction error:', error);
-      throw error;
-    }
-  } catch (error) {
-    console.error('Error creating order:', error);
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
-
-// API endpoints cho sản phẩm (products)
-
+/*---------------------------------
+- 
+-----------------------------------*/
 // Lấy tất cả sản phẩm với tùy chọn lọc theo danh mục và tìm kiếm
 app.get('/api/products', async (req, res) => {
   try {
@@ -751,8 +650,10 @@ app.get('/api/products', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
+/*---------------------------------
+- Get all products by ID
+-----------------------------------*/
 
-// Lấy sản phẩm theo ID
 app.get('/api/products/:id', async (req, res) => {
   try {
     const productId = req.params.id;
@@ -772,8 +673,9 @@ app.get('/api/products/:id', async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
-
-// Tạo sản phẩm mới
+/*---------------------------------
+- Create product by admin (admin)
+-----------------------------------*/
 app.post('/api/products', async (req, res) => {
   try {
     const { name, price, description, image_path, category } = req.body;
@@ -804,8 +706,9 @@ app.post('/api/products', async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
-
-// Cập nhật sản phẩm
+/*---------------------------------
+- Update product by admin (admin)
+-----------------------------------*/
 app.put('/api/products/:id', async (req, res) => {
   try {
     const productId = req.params.id;
@@ -841,8 +744,9 @@ app.put('/api/products/:id', async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
-
-// Xóa sản phẩm
+/*---------------------------------
+- Delete product by admin (admin)
+-----------------------------------*/
 app.delete('/api/products/:id', async (req, res) => {
   try {
     const productId = req.params.id;
@@ -866,8 +770,9 @@ app.delete('/api/products/:id', async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
-
-// Lấy tất cả người dùng (cho admin)
+/*---------------------------------
+- Get all users by admin (admin)
+-----------------------------------*/
 app.get('/api/users', async (req, res) => {
   try {
     console.log('Fetching all users...');
@@ -884,8 +789,9 @@ app.get('/api/users', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
-
-// Tạo người dùng mới (cho admin)
+/*---------------------------------
+- Create user by admin (admin)
+-----------------------------------*/
 app.post('/api/users', async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -925,8 +831,9 @@ app.post('/api/users', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
-
-// Cập nhật người dùng (cho admin và người dùng thông thường)
+/*---------------------------------
+- update  users by admin or user
+-----------------------------------*/
 app.put('/api/users/:id', async (req, res) => {
   try {
     const userId = req.params.id;
@@ -996,8 +903,9 @@ app.put('/api/users/:id', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
-
-// Xóa người dùng (cho admin)
+/*---------------------------------
+- Delete all users by admin (admin)
+-----------------------------------*/
 app.delete('/api/users/:id', async (req, res) => {
   try {
     const userId = req.params.id;
@@ -1037,474 +945,16 @@ app.delete('/api/users/:id', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
-
-// Thêm API endpoint để kiểm tra dữ liệu sản phẩm
-app.get('/api/debug/products', async (req, res) => {
-  try {
-    // Lấy tất cả sản phẩm
-    const [products] = await pool.query('SELECT * FROM products');
-    console.log('All products:', products);
-
-    // Tìm sản phẩm có tên Hamburger
-    const [hamburgers] = await pool.query('SELECT * FROM products WHERE name LIKE ?', ['%Hamburger%']);
-    console.log('Hamburger products:', hamburgers);
-
-    // Kiểm tra bảng order_items
-    const [orderItems] = await pool.query('SELECT * FROM order_items LIMIT 20');
-    console.log('Recent order items:', orderItems);
-
-    res.json({
-      status: 'success',
-      data: {
-        allProducts: products,
-        hamburgerProducts: hamburgers,
-        recentOrderItems: orderItems
-      }
-    });
-  } catch (error) {
-    console.error('Error debugging products:', error);
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
-
-
-// API để xóa bảng food_items và tạo bảng products
-
-// API để kiểm tra và sửa thông tin sản phẩm trong đơn hàng
-app.get('/api/debug/check-products', async (req, res) => {
-  try {
-    // 1. Kiểm tra tất cả các sản phẩm trong bảng products
-    const [products] = await pool.query(`
-      SELECT id, name FROM products
-    `);
-
-    console.log(`Found ${products.length} products in products table`);
-
-    // 2. Kiểm tra các mục đơn hàng và sản phẩm tương ứng
-    const [orderItems] = await pool.query(`
-      SELECT oi.id, oi.order_id, oi.product_id, oi.name,
-             p.id as found_product_id, p.name as product_name
-      FROM order_items oi
-      LEFT JOIN products p ON oi.product_id = p.id
-      LIMIT 50
-    `);
-
-    console.log(`Checking ${orderItems.length} order items`);
-
-    // Đếm số lượng mục không tìm thấy sản phẩm
-    let missingProductCount = 0;
-    for (const item of orderItems) {
-      if (!item.found_product_id) {
-        missingProductCount++;
-        console.log(`Order item #${item.id} has product_id ${item.product_id} but no matching product found`);
-      }
-    }
-
-    // 3. Kiểm tra xem có sản phẩm nào trong food_items không
-    let foodItems = [];
-    try {
-      const [result] = await pool.query(`
-        SELECT id, name FROM food_items
-      `);
-      foodItems = result;
-      console.log(`Found ${foodItems.length} items in food_items table`);
-    } catch (error) {
-      console.log('Could not query food_items table:', error.message);
-    }
-
-    // 4. Cập nhật tên sản phẩm trong order_items nếu không tìm thấy trong products
-    let updatedCount = 0;
-    for (const item of orderItems) {
-      if (!item.product_name) {
-        // Tìm tên sản phẩm trong food_items nếu có
-        const foodItem = foodItems.find(fi => fi.id === item.product_id);
-        if (foodItem) {
-          await pool.query(
-            'UPDATE order_items SET name = ? WHERE id = ?',
-            [foodItem.name, item.id]
-          );
-          updatedCount++;
-          console.log(`Updated order item #${item.id} with name from food_items: ${foodItem.name}`);
-        } else {
-          // Nếu không tìm thấy, đặt tên mặc định
-          await pool.query(
-            'UPDATE order_items SET name = ? WHERE id = ?',
-            [`Sản phẩm #${item.product_id}`, item.id]
-          );
-          updatedCount++;
-          console.log(`Updated order item #${item.id} with default name: Sản phẩm #${item.product_id}`);
-        }
-      }
-    }
-
-    res.json({
-      status: 'success',
-      message: `Found ${missingProductCount} order items with missing products. Updated ${updatedCount} items.`,
-      data: {
-        products: products,
-        orderItems: orderItems,
-        foodItems: foodItems,
-        missingProductCount: missingProductCount,
-        updatedCount: updatedCount
-      }
-    });
-  } catch (error) {
-    console.error('Error checking products:', error);
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
-
-// API để cập nhật tên sản phẩm trong bảng order_items
-app.post('/api/admin/update-order-items', async (req, res) => {
-  try {
-    // Lấy tất cả các mục đơn hàng
-    const [orderItems] = await pool.query(`
-      SELECT id, order_id, product_id, name
-      FROM order_items
-      WHERE name IS NULL OR name = ''
-    `);
-
-    console.log(`Found ${orderItems.length} order items without names`);
-
-    // Cập nhật tên sản phẩm cho từng mục
-    let updatedCount = 0;
-    for (const item of orderItems) {
-      // Tìm sản phẩm trong bảng products
-      const [products] = await pool.query(
-        'SELECT name FROM products WHERE id = ?',
-        [item.product_id]
-      );
-
-      let productName = null;
-
-      if (products.length > 0 && products[0].name) {
-        // Nếu tìm thấy trong products
-        productName = products[0].name;
-      } else {
-        // Nếu không tìm thấy trong products, tìm trong food_items
-        try {
-          const [foodItems] = await pool.query(
-            'SELECT name FROM food_items WHERE id = ?',
-            [item.product_id]
-          );
-
-          if (foodItems.length > 0 && foodItems[0].name) {
-            productName = foodItems[0].name;
-          }
-        } catch (error) {
-          console.log('Could not query food_items table:', error.message);
-        }
-      }
-
-      // Nếu vẫn không tìm thấy, sử dụng ID sản phẩm
-      if (!productName) {
-        productName = `Sản phẩm #${item.product_id}`;
-      }
-
-      // Cập nhật tên sản phẩm
-      await pool.query(
-        'UPDATE order_items SET name = ? WHERE id = ?',
-        [productName, item.id]
-      );
-
-      updatedCount++;
-    }
-
-    res.json({
-      status: 'success',
-      message: `Updated ${updatedCount} order items with product names`,
-      data: { total: orderItems.length, updated: updatedCount }
-    });
-  } catch (error) {
-    console.error('Error updating order items:', error);
-    res.status(500).json({
-      status: 'error',
-      message: error.message
-    });
-  }
-});
-
-// Cập nhật API tạo đơn hàng để đảm bảo lưu tên sản phẩm
-app.post('/api/orders', async (req, res) => {
-  try {
-    const { user_id, total_amount, items } = req.body;
-
-    console.log('Received order request:', JSON.stringify({ user_id, total_amount, items }, null, 2));
-
-    if (!user_id || !total_amount || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ status: 'error', message: 'Invalid order data' });
-    }
-
-    // Bắt đầu transaction
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
-
-    try {
-      // Tạo đơn hàng
-      const [orderResult] = await connection.query(
-        'INSERT INTO orders (user_id, total_amount, status) VALUES (?, ?, ?)',
-        [user_id, total_amount, 'pending']
-      );
-
-      const orderId = orderResult.insertId;
-
-      // Thêm các sản phẩm vào đơn hàng
-      for (const item of items) {
-        // Đảm bảo product_id là số nguyên
-        const productId = parseInt(item.product_id || item.id);
-
-        if (isNaN(productId)) {
-          throw new Error(`Invalid product ID: ${item.product_id || item.id}`);
-        }
-
-        const quantity = parseInt(item.quantity) || 1;
-        const price = parseFloat(item.price) || 0;
-
-        // Lấy tên sản phẩm từ request
-        const productName = item.name;
-
-        console.log(`Adding item to order #${orderId}:`, {
-          product_id: productId,
-          name: productName,
-          quantity: quantity,
-          price: price
-        });
-
-        // Kiểm tra xem tên sản phẩm có null không
-        if (!productName) {
-          console.warn(`Warning: Product name is null for product_id ${productId}`);
-
-          // Nếu tên sản phẩm null, thử lấy từ bảng products
-          const [products] = await connection.query(
-            'SELECT name FROM products WHERE id = ?',
-            [productId]
-          );
-
-          if (products.length > 0 && products[0].name) {
-            console.log(`Found product name from database: ${products[0].name}`);
-            await connection.query(
-              'INSERT INTO order_items (order_id, product_id, name, quantity, price) VALUES (?, ?, ?, ?, ?)',
-              [orderId, productId, products[0].name, quantity, price]
-            );
-          } else {
-            // Nếu không tìm thấy, sử dụng ID sản phẩm
-            const fallbackName = `Sản phẩm #${productId}`;
-            console.log(`Using fallback name: ${fallbackName}`);
-            await connection.query(
-              'INSERT INTO order_items (order_id, product_id, name, quantity, price) VALUES (?, ?, ?, ?, ?)',
-              [orderId, productId, fallbackName, quantity, price]
-            );
-          }
-        } else {
-          // Nếu có tên sản phẩm, sử dụng nó
-          await connection.query(
-            'INSERT INTO order_items (order_id, product_id, name, quantity, price) VALUES (?, ?, ?, ?, ?)',
-            [orderId, productId, productName, quantity, price]
-          );
-        }
-      }
-
-      // Commit transaction
-      await connection.commit();
-      connection.release();
-
-      res.status(201).json({
-        status: 'success',
-        message: 'Order created successfully',
-        data: {
-          order_id: orderId,
-          user_id,
-          total_amount,
-          items
-        }
-      });
-    } catch (error) {
-      // Rollback nếu có lỗi
-      await connection.rollback();
-      connection.release();
-      console.error('Transaction error:', error);
-      throw error;
-    }
-  } catch (error) {
-    console.error('Error creating order:', error);
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
-
-// API để cập nhật tên sản phẩm trong bảng order_items
-app.post('/api/admin/fix-order-items', async (req, res) => {
-  try {
-    // Lấy tất cả các mục đơn hàng không có tên
-    const [orderItems] = await pool.query(`
-      SELECT oi.id, oi.order_id, oi.product_id, oi.name, p.name as product_name
-      FROM order_items oi
-      LEFT JOIN products p ON oi.product_id = p.id
-      WHERE oi.name IS NULL OR oi.name = ''
-    `);
-
-    console.log(`Found ${orderItems.length} order items without names`);
-
-    // Cập nhật tên sản phẩm cho từng mục
-    let updatedCount = 0;
-    for (const item of orderItems) {
-      if (item.product_name) {
-        await pool.query(
-          'UPDATE order_items SET name = ? WHERE id = ?',
-          [item.product_name, item.id]
-        );
-        updatedCount++;
-      }
-    }
-
-    res.json({
-      status: 'success',
-      message: `Updated ${updatedCount} order items with product names`,
-      data: { total: orderItems.length, updated: updatedCount }
-    });
-  } catch (error) {
-    console.error('Error fixing order items:', error);
-    res.status(500).json({
-      status: 'error',
-      message: error.message
-    });
-  }
-});
-
-// API để cập nhật product_id trong bảng order_items
-app.post('/api/admin/fix-order-items-product-id', async (req, res) => {
-  try {
-    // 1. Lấy danh sách sản phẩm từ bảng products
-    const [products] = await pool.query(`
-      SELECT id, name, price FROM products
-      ORDER BY id ASC
-      LIMIT 1
-    `);
-
-    if (products.length === 0) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'No products found in the database'
-      });
-    }
-
-    // Lấy sản phẩm đầu tiên để sử dụng làm tham chiếu
-    const defaultProduct = products[0];
-    console.log(`Using default product: ${defaultProduct.name} (ID: ${defaultProduct.id})`);
-
-    // 2. Cập nhật tất cả các mục trong order_items có product_id không tồn tại
-    const [result] = await pool.query(`
-      UPDATE order_items oi
-      LEFT JOIN products p ON oi.product_id = p.id
-      SET oi.product_id = ?, oi.name = ?
-      WHERE p.id IS NULL
-    `, [defaultProduct.id, defaultProduct.name]);
-
-    console.log(`Updated ${result.affectedRows} order items with valid product_id`);
-
-    res.json({
-      status: 'success',
-      message: `Updated ${result.affectedRows} order items with valid product_id`,
-      data: {
-        defaultProduct: defaultProduct,
-        affectedRows: result.affectedRows
-      }
-    });
-  } catch (error) {
-    console.error('Error fixing order items product_id:', error);
-    res.status(500).json({
-      status: 'error',
-      message: error.message
-    });
-  }
-});
-
-// Cập nhật API lấy danh sách đơn hàng
-app.get('/api/orders', async (req, res) => {
-  try {
-    const { user_id, status } = req.query;
-
-    let query = `
-      SELECT o.*, u.name as user_name 
-      FROM orders o
-      LEFT JOIN users u ON o.user_id = u.id
-      WHERE 1=1
-    `;
-
-    const params = [];
-
-    if (user_id) {
-      query += ' AND o.user_id = ?';
-      params.push(user_id);
-    }
-
-    if (status) {
-      query += ' AND o.status = ?';
-      params.push(status);
-    }
-
-    // Sắp xếp theo id giảm dần (đơn hàng mới nhất trước)
-    query += ' ORDER BY o.id DESC';
-
-    console.log('Orders query:', query);
-
-    const [orders] = await pool.query(query, params);
-    console.log(`Found ${orders.length} orders`);
-
-    // Lấy chi tiết đơn hàng cho mỗi đơn hàng
-    const ordersWithItems = await Promise.all(orders.map(async (order) => {
-      // Lấy thông tin chi tiết đơn hàng kèm tên sản phẩm
-      const [items] = await pool.query(`
-        SELECT oi.*, p.name as product_name, p.image_path 
-        FROM order_items oi
-        LEFT JOIN products p ON oi.product_id = p.id
-        WHERE oi.order_id = ?
-      `, [order.id]);
-
-      console.log(`Order #${order.id} has ${items.length} items`);
-
-      // Sử dụng tên sản phẩm từ order_items hoặc từ products
-      const itemsWithNames = items.map(item => {
-        // In ra thông tin để debug
-        console.log(`Item in order #${order.id}:`, {
-          id: item.id,
-          product_id: item.product_id,
-          name: item.name,
-          product_name: item.product_name
-        });
-
-        // Nếu không có tên sản phẩm, sử dụng ID sản phẩm
-        return {
-          ...item,
-          name: item.name || item.product_name || `Sản phẩm #${item.product_id}`
-        };
-      });
-
-      return {
-        ...order,
-        items: itemsWithNames
-      };
-    }));
-
-    res.json({
-      status: 'success',
-      data: ordersWithItems
-    });
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-    res.status(500).json({
-      status: 'error',
-      message: error.message
-    });
-  }
-});
-
+/*---------------------------------
+- Get all orders by user (user)
+-----------------------------------*/
 // API lấy danh sách đơn hàng của người dùng
 app.get('/users/:id/orders', async (req, res) => {
   try {
     const userId = req.params.id;
-    
+
     console.log(`Getting orders for user ${userId}`);
-    
+
     // Lấy danh sách đơn hàng
     const [orders] = await pool.query(
       `SELECT * FROM orders 
@@ -1512,9 +962,9 @@ app.get('/users/:id/orders', async (req, res) => {
        ORDER BY created_at DESC`,
       [userId]
     );
-    
+
     console.log(`Found ${orders.length} orders for user ${userId}`);
-    
+
     res.json({
       status: 'success',
       data: orders
@@ -1533,7 +983,7 @@ app.get('/orders/:id/items', async (req, res) => {
   try {
     const orderId = req.params.id;
     console.log(`Fetching items for order #${orderId}`);
-    
+
     // Lấy thông tin chi tiết sản phẩm trong đơn hàng
     const [items] = await pool.query(
       `SELECT oi.*, p.image_path, p.name as product_name, p.description, p.price as product_price
@@ -1542,31 +992,31 @@ app.get('/orders/:id/items', async (req, res) => {
        WHERE oi.order_id = ?`,
       [orderId]
     );
-    
+
     console.log(`Found ${items.length} items for order #${orderId}`);
-    
+
     // Xử lý và trả về thông tin sản phẩm
     const processedItems = items.map(item => {
       // Chuyển đổi dữ liệu từ MySQL sang JSON
-      const processedItem = {...item};
-      
+      const processedItem = { ...item };
+
       // Xử lý đường dẫn ảnh
       if (processedItem.image_path) {
         // Đảm bảo đường dẫn ảnh không bắt đầu bằng '/'
-        processedItem.image_path = processedItem.image_path.startsWith('/') 
-          ? processedItem.image_path.substring(1) 
+        processedItem.image_path = processedItem.image_path.startsWith('/')
+          ? processedItem.image_path.substring(1)
           : processedItem.image_path;
-          
+
         // Thêm trường ImagePath để tương thích với frontend
         processedItem.ImagePath = processedItem.image_path;
       }
-      
+
       // Log thông tin sản phẩm để debug
       console.log(`Product in order #${orderId}: ${processedItem.product_name || processedItem.name}, image: ${processedItem.image_path || 'none'}`);
-      
+
       return processedItem;
     });
-    
+
     res.json(processedItems);
   } catch (error) {
     console.error('Error getting order items:', error);
@@ -1576,7 +1026,9 @@ app.get('/orders/:id/items', async (req, res) => {
     });
   }
 });
-
+/*--------------------------------------
+Update  user profile
+-----------------------------------------*/
 // Cập nhật thông tin cá nhân (cho người dùng)
 app.put('/api/users/profile/:id', async (req, res) => {
   try {
@@ -1695,7 +1147,8 @@ const upload = multer({
 
 // Phục vụ các file tĩnh từ thư mục uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+/*---------------------------------------- 
+------------------------------------------*/
 // API endpoint để upload ảnh đại diện
 app.post('/api/upload-profile-image', upload.single('image'), async (req, res) => {
   try {
@@ -1749,6 +1202,9 @@ app.post('/api/upload-profile-image', upload.single('image'), async (req, res) =
   }
 });
 
+/*---------------------------------
+- Api notification
+-----------------------------------*/
 // API lấy thông báo của người dùng
 app.get('/api/users/:userId/notifications', async (req, res) => {
   try {
@@ -1779,7 +1235,8 @@ app.get('/api/users/:userId/notifications', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
-
+/*-------------------------------------
+--------------------------------------*/
 // API đánh dấu thông báo đã đọc
 app.put('/api/notifications/:id/read', async (req, res) => {
   try {
@@ -1822,30 +1279,32 @@ app.put('/api/users/:userId/notifications/read-all', async (req, res) => {
   }
 });
 
-// API endpoints cho chat
+/*
+---------------------------------
+- Api chat ( user)
+-----------------------------------*/
 
-// Lấy tin nhắn chat của người dùng
 app.get('/api/chat/messages/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
-    
+
     // Thêm log để debug
     console.log(`Getting messages for user ${userId}`);
-    
+
     const [messages] = await pool.query(
       `SELECT * FROM chat_messages 
        WHERE user_id = ? 
        ORDER BY created_at ASC`,
       [userId]
     );
-    
+
     console.log(`Retrieved ${messages.length} messages for user ${userId}`);
-    
+
     // Thêm header để tránh cache
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    
+
     res.json({
       status: 'success',
       data: messages
@@ -1861,21 +1320,21 @@ app.post('/api/chat/messages', async (req, res) => {
   console.log('Received chat message request:', req.body);
   try {
     const { userId, message, sender } = req.body;
-    
+
     if (!userId || !message || !sender) {
-      return res.status(400).json({ 
-        status: 'error', 
-        message: 'Missing required fields' 
+      return res.status(400).json({
+        status: 'error',
+        message: 'Missing required fields'
       });
     }
-    
+
     const [result] = await pool.query(
       'INSERT INTO chat_messages (user_id, sender, message) VALUES (?, ?, ?)',
       [userId, sender, message]
     );
-    
+
     console.log('Message saved successfully, ID:', result.insertId);
-    
+
     res.json({
       status: 'success',
       message: 'Message sent successfully',
@@ -1906,7 +1365,7 @@ app.get('/api/chat/users', async (req, res) => {
       LEFT JOIN users u ON cm.user_id = u.id
       ORDER BY last_message_time DESC
     `);
-    
+
     res.json({
       status: 'success',
       data: users
@@ -1921,19 +1380,19 @@ app.get('/api/chat/users', async (req, res) => {
 app.post('/api/chat/mark-read', async (req, res) => {
   try {
     const { userId, sender } = req.body;
-    
+
     console.log(`Marking messages as read for user ${userId}, sender ${sender}`);
-    
+
     await pool.query(
       'UPDATE chat_messages SET is_read = TRUE WHERE user_id = ? AND sender = ?',
       [userId, sender]
     );
-    
+
     // Thêm header để tránh cache
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    
+
     res.json({
       status: 'success',
       message: 'Messages marked as read'
@@ -1953,20 +1412,20 @@ app.get('/api/health', (req, res) => {
 app.get('/api/orders/:id/details', async (req, res) => {
   try {
     const orderId = req.params.id;
-    
+
     // Lấy thông tin đơn hàng
     const [orders] = await pool.query(
       'SELECT * FROM orders WHERE id = ?',
       [orderId]
     );
-    
+
     if (orders.length === 0) {
       return res.status(404).json({
         status: 'error',
         message: 'Order not found'
       });
     }
-    
+
     // Lấy các mục trong đơn hàng với thông tin sản phẩm
     const [items] = await pool.query(
       `SELECT oi.*, p.name, p.image_url 
@@ -1975,7 +1434,7 @@ app.get('/api/orders/:id/details', async (req, res) => {
        WHERE oi.order_id = ?`,
       [orderId]
     );
-    
+
     res.json({
       status: 'success',
       data: {
@@ -1996,7 +1455,7 @@ app.get('/api/orders/:id/details', async (req, res) => {
 app.get('/api/orders/:id/items', async (req, res) => {
   try {
     const orderId = req.params.id;
-    
+
     // Lấy các mục trong đơn hàng
     const [items] = await pool.query(
       `SELECT oi.*, p.image_path, p.name as product_name
@@ -2005,21 +1464,21 @@ app.get('/api/orders/:id/items', async (req, res) => {
        WHERE oi.order_id = ?`,
       [orderId]
     );
-    
+
     // Log để debug
     console.log(`Found ${items.length} items for order #${orderId}`);
-    
+
     // Đảm bảo đường dẫn ảnh đầy đủ
     const itemsWithFullImagePath = items.map(item => {
       // Nếu có image_path, đảm bảo nó không bắt đầu bằng '/'
       if (item.image_path) {
-        item.image_path = item.image_path.startsWith('/') 
-          ? item.image_path.substring(1) 
+        item.image_path = item.image_path.startsWith('/')
+          ? item.image_path.substring(1)
           : item.image_path;
       }
       return item;
     });
-    
+
     res.json({
       status: 'success',
       data: itemsWithFullImagePath
@@ -2032,117 +1491,6 @@ app.get('/api/orders/:id/items', async (req, res) => {
     });
   }
 });
-
-// Thêm API endpoint để kiểm tra và sửa thông tin sản phẩm trong đơn hàng
-app.get('/api/debug/fix-order-items', async (req, res) => {
-  try {
-    // 1. Lấy danh sách đơn hàng có trạng thái returning
-    const [returningOrders] = await pool.query(`
-      SELECT id, status FROM orders 
-      WHERE status = 'returning'
-    `);
-    
-    console.log(`Found ${returningOrders.length} orders with returning status`);
-    
-    // 2. Lấy thông tin chi tiết các mục trong đơn hàng
-    let fixedItems = 0;
-    for (const order of returningOrders) {
-      const orderId = order.id;
-      
-      // Lấy các mục trong đơn hàng
-      const [items] = await pool.query(`
-        SELECT id, order_id, product_id, name 
-        FROM order_items 
-        WHERE order_id = ?
-      `, [orderId]);
-      
-      console.log(`Order #${orderId} has ${items.length} items`);
-      
-      // Kiểm tra và cập nhật tên sản phẩm nếu cần
-      for (const item of items) {
-        if (!item.name || item.name === '') {
-          // Tìm thông tin sản phẩm
-          const [products] = await pool.query(`
-            SELECT name FROM products WHERE id = ?
-          `, [item.product_id]);
-          
-          if (products.length > 0) {
-            // Cập nhật tên sản phẩm
-            await pool.query(`
-              UPDATE order_items SET name = ? WHERE id = ?
-            `, [products[0].name, item.id]);
-            
-            fixedItems++;
-            console.log(`Fixed item #${item.id} with product name: ${products[0].name}`);
-          } else {
-            // Nếu không tìm thấy sản phẩm, đặt tên mặc định
-            await pool.query(`
-              UPDATE order_items SET name = ? WHERE id = ?
-            `, [`Sản phẩm #${item.product_id}`, item.id]);
-            
-            fixedItems++;
-            console.log(`Fixed item #${item.id} with default name: Sản phẩm #${item.product_id}`);
-          }
-        }
-      }
-    }
-    
-    res.json({
-      status: 'success',
-      message: `Fixed ${fixedItems} items in returning orders`,
-      data: {
-        returningOrders,
-        fixedItems
-      }
-    });
-  } catch (error) {
-    console.error('Error fixing order items:', error);
-    res.status(500).json({
-      status: 'error',
-      message: error.message
-    });
-  }
-});
-
-// API lấy tất cả đơn hàng
-app.get('/api/orders', async (req, res) => {
-  try {
-    // Lấy danh sách đơn hàng từ database
-    const [orders] = await pool.query(`
-      SELECT o.*, u.name as user_name
-      FROM orders o
-      LEFT JOIN users u ON o.user_id = u.id
-      WHERE 1=1
-     ORDER BY o.id DESC
-    `);
-    
-    console.log(`Found ${orders.length} orders`);
-    
-    // Log trạng thái của các đơn hàng để debug
-    orders.forEach(order => {
-      console.log(`Order #${order.id}: ${order.status} - ${order.total_amount}`);
-    });
-
-    // Lấy chi tiết sản phẩm cho mỗi đơn hàng
-    for (const order of orders) {
-      const [items] = await pool.query(
-        'SELECT * FROM order_items WHERE order_id = ?',
-        [order.id]
-      );
-      order.items = items;
-    }
-    
-    console.log(`Successfully parsed ${orders.length} orders`);
-    
-    res.json(orders);
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
-
-
-
 
 
 
