@@ -74,19 +74,48 @@ class _OrderState extends State<Order> {
                             padding: const EdgeInsets.all(16.0),
                             child: Row(
                               children: [
-                                Image.network(
-                                  item['image'] ?? 'https://via.placeholder.com/100',
+                                Container(
                                   width: 80,
                                   height: 80,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.asset(
-                                      'images/placeholder.png',
-                                      width: 80,
-                                      height: 80,
-                                      fit: BoxFit.cover,
-                                    );
-                                  },
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: Colors.grey[300],
+                                  ),
+                                  child: item['image'] != null && item['image'].toString().isNotEmpty
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.network(
+                                          item['image'],
+                                          width: 80,
+                                          height: 80,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            print("Error loading image: $error");
+                                            // Hiển thị chữ cái đầu tiên của tên sản phẩm
+                                            final productName = item['name'] ?? 'Sản phẩm';
+                                            return Center(
+                                              child: Text(
+                                                productName.substring(0, 1).toUpperCase(),
+                                                style: TextStyle(
+                                                  fontSize: 24,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.grey[700],
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Text(
+                                          (item['name'] ?? 'SP').substring(0, 1).toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                      ),
                                 ),
                                 SizedBox(width: 16.0),
                                 Expanded(
@@ -302,6 +331,7 @@ class _OrderState extends State<Order> {
     }
   }
 }
+
 
 
 

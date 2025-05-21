@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:food_app/services/api_service.dart';
 import 'package:food_app/services/shared_pref.dart';
+import 'package:http/http.dart' as http;
 
 class OrderHistory extends StatefulWidget {
   const OrderHistory({Key? key}) : super(key: key);
@@ -20,13 +22,40 @@ class _OrderHistoryState extends State<OrderHistory>
   Map<String, List<Map<String, dynamic>>> _orderItems = {};
   final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
+  // Thêm hàm kiểm tra API
+  Future<void> _checkApiEndpoints() async {
+    try {
+      // Kiểm tra các endpoint khác nhau
+      final endpoints = [
+        '/orders/${_orders.first['id']}/items',
+        '/api/orders/${_orders.first['id']}/items',
+      ];
+
+      for (var endpoint in endpoints) {
+        final response = await http.get(
+          Uri.parse('${ApiService.baseUrl}$endpoint'),
+          headers: {'Content-Type': 'application/json'},
+        );
+
+        print('Endpoint $endpoint status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error checking endpoints: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController =
         TabController(length: 5, vsync: this); // Tăng length từ 4 lên 5
     _getUserInfo();
-    _fetchOrders();
+    _fetchOrders().then((_) {
+      if (_orders.isNotEmpty) {
+        _checkApiEndpoints();
+        _fetchOrderItems();
+      }
+    });
   }
 
   @override
@@ -100,12 +129,26 @@ class _OrderHistoryState extends State<OrderHistory>
     for (var order in _orders) {
       try {
         final orderId = order['id'].toString();
+        print("Fetching items for order #$orderId");
+
+        // Lấy thông tin sản phẩm từ API
         final orderItemsResponse = await ApiService.getOrderItems(orderId);
 
         if (!mounted) return;
 
         if (orderItemsResponse.isNotEmpty) {
+          print(
+              "Received ${orderItemsResponse.length} items for order #$orderId");
+
+          // Lưu thông tin sản phẩm
           newOrderItems[orderId] = orderItemsResponse;
+
+          // Debug thông tin sản phẩm đầu tiên
+          if (orderItemsResponse.isNotEmpty) {
+            print("First item details: ${orderItemsResponse[0]}");
+          }
+        } else {
+          print("No items received for order #$orderId");
         }
       } catch (e) {
         print("Error fetching order items for order ${order['id']}: $e");
@@ -267,6 +310,11 @@ class _OrderHistoryState extends State<OrderHistory>
     final orderId = order['id'].toString();
     final items = _orderItems[orderId] ?? [];
 
+    print("Showing details for order #$orderId with ${items.length} items");
+    if (items.isNotEmpty) {
+      print("First item in order: ${items[0]}");
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -322,18 +370,11 @@ class _OrderHistoryState extends State<OrderHistory>
                               height: 50,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
-                                image: DecorationImage(
-                                  image: item['image_path'] != null &&
-                                          item['image_path']
-                                              .toString()
-                                              .isNotEmpty
-                                      ? NetworkImage(
-                                          '${ApiService.baseUrl}/${item['image_path']}')
-                                      : AssetImage(
-                                              'assets/images/placeholder.png')
-                                          as ImageProvider,
-                                  fit: BoxFit.cover,
-                                ),
+                                color: Colors.grey[300],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: _buildProductImage(item),
                               ),
                             ),
                             title: Text(
@@ -580,7 +621,7 @@ class _OrderHistoryState extends State<OrderHistory>
                   children: [
                     Expanded(
                       child: Text(
-                        'Đơn hàng #$orderId',
+                        _getOrderTitle(orderId),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -706,9 +747,10 @@ class _OrderHistoryState extends State<OrderHistory>
                                 });
 
                                 // Gọi API để cập nhật trạng thái đơn hàng thành "returning"
-                                final result = await ApiService.updateOrderStatus(
-                                    order['id'].toString(), 'returning',
-                                    reason: selectedReason);
+                                final result =
+                                    await ApiService.updateOrderStatus(
+                                        order['id'].toString(), 'returning',
+                                        reason: selectedReason);
 
                                 if (result != null &&
                                     result['status'] == 'success') {
@@ -736,8 +778,7 @@ class _OrderHistoryState extends State<OrderHistory>
                                   _isLoading = false;
                                 });
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text('Lỗi: $e')),
+                                  SnackBar(content: Text('Lỗi: $e')),
                                 );
                               }
                             },
@@ -755,6 +796,68 @@ class _OrderHistoryState extends State<OrderHistory>
           },
         );
       },
+    );
+  }
+
+  // Thêm hàm mới để xây dựng widget hiển thị ảnh sản phẩm
+  Widget _buildProductImage(Map<String, dynamic> item) {
+    // Kiểm tra và xây dựng URL ảnh
+    String? imageUrl;
+
+    // Kiểm tra các trường có thể chứa đường dẫn ảnh
+    if (item['image_path'] != null &&
+        item['image_path'].toString().isNotEmpty) {
+      imageUrl = item['image_path'];
+    } else if (item['ImagePath'] != null &&
+        item['ImagePath'].toString().isNotEmpty) {
+      imageUrl = item['ImagePath'];
+    } else if (item['image'] != null && item['image'].toString().isNotEmpty) {
+      imageUrl = item['image'];
+    }
+
+    // Debug thông tin
+    print(
+        "Item data: ${item.toString().substring(0, math.min(100, item.toString().length))}...");
+    print("Image URL extracted: $imageUrl");
+
+    // Nếu có URL ảnh, hiển thị ảnh
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      // Kiểm tra xem URL đã đầy đủ chưa
+      if (!imageUrl.startsWith('http')) {
+        // Nếu là đường dẫn tương đối, thêm baseUrl
+        imageUrl = '${ApiService.baseUrl}/$imageUrl';
+      }
+
+      print("Final image URL: $imageUrl");
+
+      return Image.network(
+        imageUrl,
+        width: 50,
+        height: 50,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print("Error loading image: $error for URL: $imageUrl");
+          return _buildFallbackImage(item);
+        },
+      );
+    } else {
+      print("No image URL found, using fallback");
+      return _buildFallbackImage(item);
+    }
+  }
+
+  // Hàm tạo widget fallback khi không có ảnh
+  Widget _buildFallbackImage(Map<String, dynamic> item) {
+    final productName = item['product_name'] ?? item['name'] ?? 'SP';
+    return Center(
+      child: Text(
+        productName.substring(0, 1).toUpperCase(),
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[700],
+        ),
+      ),
     );
   }
 
@@ -825,5 +928,3 @@ class _OrderHistoryState extends State<OrderHistory>
     );
   }
 }
-
-

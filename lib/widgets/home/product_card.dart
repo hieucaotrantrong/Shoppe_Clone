@@ -109,13 +109,14 @@ class ProductCard extends StatelessWidget {
                         ),
                         onPressed: () {
                           // Thêm tham số forceAdd = true để luôn thêm mới sản phẩm
-                          Provider.of<CartProvider>(context, listen: false).addToCart({
+                          Provider.of<CartProvider>(context, listen: false)
+                              .addToCart({
                             "id": docId,
                             "name": product["Name"],
                             "price": product["Price"],
                             "image": product["ImagePath"],
                           }, 1, forceAdd: true);
-                          
+
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Added ${product["Name"]} to cart'),
@@ -175,7 +176,8 @@ class ShopeeStyleProductCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min, // Đảm bảo column chỉ chiếm không gian cần thiết
+          mainAxisSize:
+              MainAxisSize.min, // Đảm bảo column chỉ chiếm không gian cần thiết
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Ảnh sản phẩm với tỷ lệ cố định
@@ -188,21 +190,23 @@ class ShopeeStyleProductCard extends StatelessWidget {
                       topLeft: Radius.circular(10),
                       topRight: Radius.circular(10),
                     ),
-                    child: product["ImagePath"] != null && product["ImagePath"].toString().isNotEmpty
-                      ? Image.network(
-                          product["ImagePath"],
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[200],
-                              child: Icon(Icons.image_not_supported, size: 40),
-                            );
-                          },
-                        )
-                      : Container(
-                          color: Colors.grey[200],
-                          child: Icon(Icons.image_not_supported, size: 40),
-                        ),
+                    child: product["ImagePath"] != null &&
+                            product["ImagePath"].toString().isNotEmpty
+                        ? Image.network(
+                            product["ImagePath"],
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey[200],
+                                child:
+                                    Icon(Icons.image_not_supported, size: 40),
+                              );
+                            },
+                          )
+                        : Container(
+                            color: Colors.grey[200],
+                            child: Icon(Icons.image_not_supported, size: 40),
+                          ),
                   ),
                   // Nhãn giảm giá
                   if (discount > 0)
@@ -210,7 +214,8 @@ class ShopeeStyleProductCard extends StatelessWidget {
                       top: 0,
                       right: 0,
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.red,
                           borderRadius: BorderRadius.only(
@@ -299,9 +304,3 @@ class ShopeeStyleProductCard extends StatelessWidget {
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
   }
 }
-
-
-
-
-
-

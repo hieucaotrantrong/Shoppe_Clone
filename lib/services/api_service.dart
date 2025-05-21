@@ -868,28 +868,38 @@ class ApiService {
     }
   }
 
-  // Cập nhật hàm để lấy các mục trong đơn hàng
-  static Future<List<Map<String, dynamic>>> getOrderItems(
-      String orderId) async {
+  // Cập nhật hàm để lấy các mục trong đơn hàng - sửa đường dẫn API
+  static Future<List<Map<String, dynamic>>> getOrderItems(String orderId) async {
     try {
-      // Sửa URL để khớp với endpoint của server
-      final url = '$baseUrl/orders/$orderId/items';
-      print('Calling API: $url');
-
+      // Sửa đường dẫn API - bỏ "api/" nếu server không có prefix này
       final response = await http
           .get(
-            Uri.parse(url),
+            Uri.parse('$baseUrl/orders/$orderId/items'),
+            headers: {'Content-Type': 'application/json'},
           )
           .timeout(requestTimeout);
 
+      print('Order items response status: ${response.statusCode}');
+      print('Response body: ${response.body.substring(0, min(100, response.body.length))}...');
+
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 'success' && data['data'] != null) {
-          return List<Map<String, dynamic>>.from(data['data']);
+        final responseData = json.decode(response.body);
+        
+        // Kiểm tra cấu trúc response
+        if (responseData is Map && responseData.containsKey('data')) {
+          // Nếu response có dạng {status: success, data: [...]}
+          final List<dynamic> items = responseData['data'];
+          return items.map((item) => item as Map<String, dynamic>).toList();
+        } else if (responseData is List) {
+          // Nếu response trực tiếp là một mảng
+          return responseData.map((item) => item as Map<String, dynamic>).toList();
+        } else {
+          // Trường hợp khác
+          print('Unexpected response format: ${responseData.runtimeType}');
+          return [];
         }
-        return [];
       } else {
-        print('Failed to load order items: ${response.statusCode}');
+        print('Error status code: ${response.statusCode}');
         return [];
       }
     } catch (e) {
@@ -898,4 +908,7 @@ class ApiService {
     }
   }
 }
+
+
+
 

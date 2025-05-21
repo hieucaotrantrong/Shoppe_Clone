@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:food_app/pages/login.dart';
 import 'package:food_app/pages/edit_profile.dart';
@@ -138,34 +137,49 @@ class _ProfileState extends State<Profile> {
 
   // Hàm xử lý đăng xuất
   logout() async {
-    // Xóa tất cả dữ liệu của người dùng từ SharedPreferences
-    await SharedPreferenceHelper().clearUserData();
+    // Hiển thị hộp thoại xác nhận trước khi đăng xuất
+    bool? confirmLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Xác nhận đăng xuất"),
+          content: Text("Bạn có chắc chắn muốn đăng xuất không?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text("Hủy"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                "Đăng xuất",
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
 
-    // Hiển thị thông báo đăng xuất thành công
-    Fluttertoast.showToast(
-        msg: "Đăng xuất thành công",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        backgroundColor: Colors.black,
-        textColor: Colors.white,
-        fontSize: 16.0);
+    // Nếu người dùng xác nhận đăng xuất
+    if (confirmLogout == true) {
+      // Xóa tất cả dữ liệu của người dùng từ SharedPreferences
+      await SharedPreferenceHelper().clearUserData();
 
-    // Điều hướng về màn hình đăng nhập
-    Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-            builder: (context) => LogIn()));
+      // Hiển thị thông báo đăng xuất thành công
+      Fluttertoast.showToast(
+          msg: "Đăng xuất thành công",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.black,
+          textColor: Colors.white,
+          fontSize: 16.0);
+
+      // Điều hướng về màn hình đăng nhập
+      Navigator.pushReplacement(
+          context, MaterialPageRoute(builder: (context) => LogIn()));
+    }
   }
 }
-
-
-
-
-
-
-
-
-
-
 

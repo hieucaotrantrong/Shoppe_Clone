@@ -1532,24 +1532,42 @@ app.get('/users/:id/orders', async (req, res) => {
 app.get('/orders/:id/items', async (req, res) => {
   try {
     const orderId = req.params.id;
+    console.log(`Fetching items for order #${orderId}`);
     
-    console.log(`Getting items for order ${orderId}`);
-    
-    // Lấy các mục trong đơn hàng
+    // Lấy thông tin chi tiết sản phẩm trong đơn hàng
     const [items] = await pool.query(
-      `SELECT oi.*, p.image_path, p.name as product_name
+      `SELECT oi.*, p.image_path, p.name as product_name, p.description, p.price as product_price
        FROM order_items oi
        LEFT JOIN products p ON oi.product_id = p.id
        WHERE oi.order_id = ?`,
       [orderId]
     );
     
-    console.log(`Found ${items.length} items for order ${orderId}`);
+    console.log(`Found ${items.length} items for order #${orderId}`);
     
-    res.json({
-      status: 'success',
-      data: items
+    // Xử lý và trả về thông tin sản phẩm
+    const processedItems = items.map(item => {
+      // Chuyển đổi dữ liệu từ MySQL sang JSON
+      const processedItem = {...item};
+      
+      // Xử lý đường dẫn ảnh
+      if (processedItem.image_path) {
+        // Đảm bảo đường dẫn ảnh không bắt đầu bằng '/'
+        processedItem.image_path = processedItem.image_path.startsWith('/') 
+          ? processedItem.image_path.substring(1) 
+          : processedItem.image_path;
+          
+        // Thêm trường ImagePath để tương thích với frontend
+        processedItem.ImagePath = processedItem.image_path;
+      }
+      
+      // Log thông tin sản phẩm để debug
+      console.log(`Product in order #${orderId}: ${processedItem.product_name || processedItem.name}, image: ${processedItem.image_path || 'none'}`);
+      
+      return processedItem;
     });
+    
+    res.json(processedItems);
   } catch (error) {
     console.error('Error getting order items:', error);
     res.status(500).json({
@@ -1988,9 +2006,23 @@ app.get('/api/orders/:id/items', async (req, res) => {
       [orderId]
     );
     
+    // Log để debug
+    console.log(`Found ${items.length} items for order #${orderId}`);
+    
+    // Đảm bảo đường dẫn ảnh đầy đủ
+    const itemsWithFullImagePath = items.map(item => {
+      // Nếu có image_path, đảm bảo nó không bắt đầu bằng '/'
+      if (item.image_path) {
+        item.image_path = item.image_path.startsWith('/') 
+          ? item.image_path.substring(1) 
+          : item.image_path;
+      }
+      return item;
+    });
+    
     res.json({
       status: 'success',
-      data: items
+      data: itemsWithFullImagePath
     });
   } catch (error) {
     console.error('Error getting order items:', error);
@@ -2108,6 +2140,10 @@ app.get('/api/orders', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
+
+
+
+
 
 
 
