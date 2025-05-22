@@ -1450,12 +1450,16 @@ app.get('/api/orders/:id/details', async (req, res) => {
     });
   }
 });
+/*--------------------------------------
+Lấy các mục trong đơn hàng Api
+order_History
+---------------------------------------*/
 
-// API để lấy các mục trong đơn hàng
 app.get('/api/orders/:id/items', async (req, res) => {
   try {
     const orderId = req.params.id;
-
+    /*---------------------------------------
+    -----------------------------------------*/
     // Lấy các mục trong đơn hàng
     const [items] = await pool.query(
       `SELECT oi.*, p.image_path, p.name as product_name
@@ -1464,10 +1468,6 @@ app.get('/api/orders/:id/items', async (req, res) => {
        WHERE oi.order_id = ?`,
       [orderId]
     );
-
-    // Log để debug
-    console.log(`Found ${items.length} items for order #${orderId}`);
-
     // Đảm bảo đường dẫn ảnh đầy đủ
     const itemsWithFullImagePath = items.map(item => {
       // Nếu có image_path, đảm bảo nó không bắt đầu bằng '/'
@@ -1491,6 +1491,9 @@ app.get('/api/orders/:id/items', async (req, res) => {
     });
   }
 });
+
+
+
 
 
 

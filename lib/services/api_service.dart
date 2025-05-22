@@ -872,9 +872,10 @@ class ApiService {
   // Cập nhật hàm để lấy các mục trong đơn hàng
   static Future<List<Map<String, dynamic>>> getOrderItems(String orderId) async {
     try {
+      // Sửa đường dẫn API - loại bỏ /api/ trùng lặp
       final response = await http
           .get(
-            Uri.parse('$baseUrl/api/orders/$orderId/items'),
+            Uri.parse('$baseUrl/orders/$orderId/items'),
             headers: {'Content-Type': 'application/json'},
           )
           .timeout(requestTimeout);
@@ -910,6 +911,7 @@ class ApiService {
     }
   }
 }
+
 
 
 

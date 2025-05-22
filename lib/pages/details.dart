@@ -14,7 +14,7 @@ class Details extends StatefulWidget {
 
 class _DetailsState extends State<Details> {
   int quantity = 1;
-  final int discount = 15; // Giả lập giảm giá 15%
+  final int discount = 15;
 
   void _incrementQuantity() {
     setState(() {

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:food_app/services/api_service.dart';
 import 'package:food_app/services/shared_pref.dart';
 import 'package:http/http.dart' as http;
+import 'package:cached_network_image/cached_network_image.dart';
 
 class OrderHistory extends StatefulWidget {
   const OrderHistory({Key? key}) : super(key: key);
@@ -47,15 +48,8 @@ class _OrderHistoryState extends State<OrderHistory>
   @override
   void initState() {
     super.initState();
-    _tabController =
-        TabController(length: 5, vsync: this); // Tăng length từ 4 lên 5
+    _tabController = TabController(length: 5, vsync: this);
     _getUserInfo();
-    _fetchOrders().then((_) {
-      if (_orders.isNotEmpty) {
-        _checkApiEndpoints();
-        _fetchOrderItems();
-      }
-    });
   }
 
   @override
@@ -94,7 +88,6 @@ class _OrderHistoryState extends State<OrderHistory>
       });
 
       print('Fetching orders for user $userId');
-      // Sửa đường dẫn API để phù hợp với server
       final orders = await ApiService.getUserOrders(userId!);
 
       if (!mounted) return;
@@ -105,7 +98,7 @@ class _OrderHistoryState extends State<OrderHistory>
         _orders = orders;
       });
 
-      // Lấy chi tiết cho mỗi đơn hàng
+      // Lấy chi tiết cho mỗi đơn hàng ngay lập tức
       if (orders.isNotEmpty) {
         await _fetchOrderItems();
       }
@@ -216,6 +209,26 @@ class _OrderHistoryState extends State<OrderHistory>
         final orderDate =
             DateTime.parse(order['created_at'] ?? DateTime.now().toString());
 
+        // Lấy tên sản phẩm từ đơn hàng
+        String orderTitle = '';
+        if (_orderItems.containsKey(orderId) &&
+            _orderItems[orderId]!.isNotEmpty) {
+          final items = _orderItems[orderId]!;
+          final firstItem = items[0];
+          final itemName = firstItem['product_name'] ??
+              firstItem['name'] ??
+              'Sản phẩm không tên';
+
+          if (items.length > 1) {
+            orderTitle = '$itemName và ${items.length - 1} sản phẩm khác';
+          } else {
+            orderTitle = itemName;
+          }
+        } else {
+          // Nếu chưa có dữ liệu sản phẩm, hiển thị tên tạm thời
+          orderTitle = 'Đơn hàng #$orderId';
+        }
+
         // Đảm bảo total_amount là một số hợp lệ
         double totalAmount = 0;
         try {
@@ -239,7 +252,11 @@ class _OrderHistoryState extends State<OrderHistory>
                   children: [
                     Expanded(
                       child: Text(
-                        _getOrderTitle(orderId),
+                        // Thay đổi ở đây - Sử dụng tên sản phẩm thay vì ID đơn hàng
+                        _orderItems.containsKey(orderId) &&
+                                _orderItems[orderId]!.isNotEmpty
+                            ? _getOrderTitle(orderId)
+                            : 'Đơn hàng đang tải...',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -801,6 +818,9 @@ class _OrderHistoryState extends State<OrderHistory>
 
   // Thêm hàm mới để xây dựng widget hiển thị ảnh sản phẩm
   Widget _buildProductImage(Map<String, dynamic> item) {
+    // In toàn bộ dữ liệu item để debug
+    print("Full item data: $item");
+
     // Kiểm tra và xây dựng URL ảnh
     String? imageUrl;
 
@@ -815,9 +835,6 @@ class _OrderHistoryState extends State<OrderHistory>
       imageUrl = item['image'];
     }
 
-    // Debug thông tin
-    print(
-        "Item data: ${item.toString().substring(0, math.min(100, item.toString().length))}...");
     print("Image URL extracted: $imageUrl");
 
     // Nếu có URL ảnh, hiển thị ảnh
@@ -830,12 +847,16 @@ class _OrderHistoryState extends State<OrderHistory>
 
       print("Final image URL: $imageUrl");
 
-      return Image.network(
-        imageUrl,
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
         width: 50,
         height: 50,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
+        placeholder: (context, url) => Container(
+          color: Colors.grey[300],
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        errorWidget: (context, url, error) {
           print("Error loading image: $error for URL: $imageUrl");
           return _buildFallbackImage(item);
         },
