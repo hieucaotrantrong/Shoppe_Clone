@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:food_app/services/api_service.dart';
+import 'package:intl/intl.dart';
 
 class ManageProducts extends StatefulWidget {
   @override
@@ -203,7 +204,7 @@ class _ManageProductsState extends State<ManageProducts> {
   }
 
   String _formatPrice(dynamic price) {
-    if (price == null) return '0';
+    if (price == null) return '₫0';
     
     // Chuyển đổi giá thành số
     double numPrice;
@@ -213,9 +214,12 @@ class _ManageProductsState extends State<ManageProducts> {
       numPrice = price.toDouble();
     }
     
-    // Định dạng số với dấu phân cách hàng nghìn
-    return numPrice.toStringAsFixed(0).replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
+    // Sử dụng NumberFormat để định dạng giá tiền
+    return NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+      decimalDigits: 0,
+    ).format(numPrice);
   }
 
   void _showAddProductDialog() {
@@ -517,6 +521,8 @@ class _ManageProductsState extends State<ManageProducts> {
     );
   }
 }
+
+
 
 
 

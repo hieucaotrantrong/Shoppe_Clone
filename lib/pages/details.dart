@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:food_app/providers/cart_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:food_app/pages/order.dart';
+import 'package:intl/intl.dart';
 
 class Details extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -37,12 +38,25 @@ class _DetailsState extends State<Details> {
     // Kiểm tra và chuyển đổi giá từ String sang double nếu cần
     double originalPrice;
     if (widget.product["Price"] is String) {
-      originalPrice = double.parse(widget.product["Price"]);
+      originalPrice = double.tryParse(widget.product["Price"]) ?? 0;
     } else {
-      originalPrice = widget.product["Price"].toDouble();
+      originalPrice = (widget.product["Price"] ?? 0).toDouble();
     }
 
     final discountedPrice = originalPrice * (1 - discount / 100);
+
+    // Định dạng giá tiền với đơn vị tiền tệ Việt Nam
+    final formattedOriginalPrice = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+      decimalDigits: 0,
+    ).format(originalPrice);
+
+    final formattedDiscountedPrice = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+      decimalDigits: 0,
+    ).format(discountedPrice);
 
     print("Product details: ${widget.product}");
     print("Original price: $originalPrice");
@@ -178,18 +192,20 @@ class _DetailsState extends State<Details> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          '₫${discountedPrice.toStringAsFixed(0)}',
+                          discount > 0
+                              ? formattedDiscountedPrice
+                              : formattedOriginalPrice,
                           style: TextStyle(
-                            color: Colors.red,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
+                            color: Colors.red,
                           ),
                         ),
                         if (discount > 0)
                           Row(
                             children: [
                               Text(
-                                '₫${originalPrice.toStringAsFixed(0)}',
+                                formattedOriginalPrice,
                                 style: TextStyle(
                                   color: Colors.grey,
                                   fontSize: 16,
@@ -471,3 +487,9 @@ class _DetailsState extends State<Details> {
     );
   }
 }
+
+
+
+
+
+

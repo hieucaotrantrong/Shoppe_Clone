@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:food_app/services/api_service.dart';
-import 'package:food_app/widgets/home/product_card.dart';
 import 'package:food_app/pages/details.dart';
+import 'package:food_app/services/api_service.dart';
+import 'package:intl/intl.dart';
 
 class ProductsGrid extends StatefulWidget {
   final String? category;
@@ -186,9 +186,29 @@ class ShopeeStyleProductCard extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final imageHeight = screenWidth * 0.25; // Chiều cao ảnh bằng 25% chiều rộng màn hình
     
-    final originalPrice = double.parse(product["Price"].toString());
+    // Chuyển đổi giá từ String sang double nếu cần
+    double originalPrice;
+    if (product["Price"] is String) {
+      originalPrice = double.tryParse(product["Price"].toString()) ?? 0;
+    } else {
+      originalPrice = (product["Price"] ?? 0).toDouble();
+    }
+    
     final discountedPrice = originalPrice * (1 - discount / 100);
-
+    
+    // Sử dụng NumberFormat để định dạng giá tiền đúng cách
+    final formattedOriginalPrice = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+      decimalDigits: 0,
+    ).format(originalPrice);
+    
+    final formattedDiscountedPrice = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+      decimalDigits: 0,
+    ).format(discountedPrice);
+    
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -284,21 +304,21 @@ class ShopeeStyleProductCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        '₫${discountedPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(
+                        formattedDiscountedPrice,
+                        style: TextStyle(
                           color: Colors.red,
-                          fontSize: 14,
                           fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       if (discount > 0)
                         Text(
-                          '₫${originalPrice.toStringAsFixed(0)}',
-                          style: const TextStyle(
+                          formattedOriginalPrice,
+                          style: TextStyle(
                             color: Colors.grey,
-                            fontSize: 12,
                             decoration: TextDecoration.lineThrough,
+                            fontSize: 12,
                           ),
                         ),
                     ],
@@ -322,6 +342,12 @@ class ShopeeStyleProductCard extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
 
 
 

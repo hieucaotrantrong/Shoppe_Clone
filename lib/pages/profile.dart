@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:food_app/pages/login.dart';
 import 'package:food_app/pages/edit_profile.dart';
 import 'package:food_app/pages/order_history.dart';
+import 'package:food_app/pages/wallet_page.dart';
 import 'package:food_app/services/shared_pref.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -88,8 +89,11 @@ class _ProfileState extends State<Profile> {
                 MaterialPageRoute(builder: (context) => const OrderHistory()),
               );
             }),
-            buildProfileItem(Icons.settings, "Settings", () {
-              // Chuyển đến trang cài đặt
+            buildProfileItem(Icons.account_balance_wallet, "Wallet", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => WalletPage()),
+              );
             }),
             buildProfileItem(Icons.help, "Help & Support", () {
               // Chuyển đến trang trợ giúp
@@ -182,4 +186,3 @@ class _ProfileState extends State<Profile> {
     }
   }
 }
-

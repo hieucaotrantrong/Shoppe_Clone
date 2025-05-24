@@ -4,8 +4,10 @@ import 'package:food_app/services/shared_pref.dart';
 import 'package:food_app/widgets/home/header_section.dart';
 import 'package:food_app/widgets/home/categories_section.dart';
 import 'package:food_app/widgets/home/products_grid.dart';
+import 'package:food_app/pages/details.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'package:intl/intl.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -90,6 +92,89 @@ class _HomeState extends State<Home> {
         child: Text(
           'Banner Quảng Cáo',
           style: TextStyle(color: Colors.white, fontSize: 24),
+        ),
+      ),
+    );
+  }
+
+  // Trong phần hiển thị sản phẩm phổ biến
+  Widget _buildPopularProductItem(Map<String, dynamic> product) {
+    // Chuyển đổi giá từ String sang double nếu cần
+    double price = 0;
+    if (product['price'] is String) {
+      price = double.tryParse(product['price']) ?? 0;
+    } else {
+      price = (product['price'] ?? 0).toDouble();
+    }
+
+    // Đảm bảo giá được hiển thị đúng định dạng với đơn vị tiền tệ Việt Nam
+    String formattedPrice = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+      decimalDigits: 0,
+    ).format(price);
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Details(product: product),
+          ),
+        );
+      },
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Phần ảnh sản phẩm
+            ClipRRect(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+              child: Image.network(
+                product['image_path'] ?? 'https://via.placeholder.com/150',
+                height: 120,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Image.asset(
+                    'assets/images/placeholder.png',
+                    height: 120,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product['name'] ?? 'Unknown Product',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    formattedPrice,
+                    style: TextStyle(
+                      color: Theme.of(context).primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

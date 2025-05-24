@@ -93,10 +93,15 @@ class _ManageOrdersState extends State<ManageOrders> {
       print('Update result: $result');
 
       if (result != null && result['status'] == 'success') {
+        String successMessage = 'Trạng thái đơn hàng đã được cập nhật thành $newStatus';
+        
+        // Nếu đơn hàng được hoàn trả và có hoàn tiền vào ví
+        if (newStatus == 'returned' && result['refunded'] == true) {
+          successMessage += ' và tiền đã được hoàn vào ví của khách hàng';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  'Trạng thái đơn hàng đã được cập nhật thành $newStatus')),
+          SnackBar(content: Text(successMessage)),
         );
         _refreshOrders();
       } else {
@@ -473,3 +478,6 @@ class _ManageOrdersState extends State<ManageOrders> {
     );
   }
 }
+
+
+

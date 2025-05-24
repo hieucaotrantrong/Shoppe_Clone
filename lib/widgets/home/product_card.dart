@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:food_app/pages/details.dart';
 import 'package:food_app/providers/cart_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 class ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -300,7 +301,16 @@ class ShopeeStyleProductCard extends StatelessWidget {
   }
 
   String _formatPrice(double price) {
-    return price.toStringAsFixed(0).replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
+    // Sử dụng NumberFormat thay vì phương thức tự định nghĩa
+    return NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+      decimalDigits: 0,
+    ).format(price);
   }
 }
+
+
+
+
+

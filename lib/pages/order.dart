@@ -4,6 +4,8 @@ import 'package:food_app/providers/cart_provider.dart';
 import 'package:food_app/services/api_service.dart';
 import 'package:food_app/services/shared_pref.dart';
 import 'package:food_app/pages/bottomnav.dart';
+import 'package:food_app/pages/checkout_page.dart';
+import 'package:intl/intl.dart';
 
 class Order extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -20,7 +22,7 @@ class _OrderState extends State<Order> {
   @override
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context);
-    final totalAmount = _calculateTotal(widget.cartItems);
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       appBar: AppBar(
@@ -43,137 +45,46 @@ class _OrderState extends State<Order> {
                 child: ListView.builder(
                   itemCount: widget.cartItems.length,
                   itemBuilder: (context, index) {
-                    // Kiểm tra index có hợp lệ không
-                    if (index < 0 || index >= widget.cartItems.length) {
-                      return SizedBox(); // Trả về widget trống nếu index không hợp lệ
+                    final item = widget.cartItems[index];
+                    
+                    // Chuyển đổi giá từ String sang double nếu cần
+                    double price = 0;
+                    if (item['price'] is String) {
+                      price = double.tryParse(item['price']) ?? 0;
+                    } else {
+                      price = (item['price'] ?? 0).toDouble();
                     }
                     
-                    final item = widget.cartItems[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 8.0,
-                      ),
-                      child: Dismissible(
-                        key: Key(item['cart_item_id']?.toString() ?? item['name']),
-                        onDismissed: (direction) {
-                          cartProvider.removeItem(index);
+                    // Định dạng giá tiền
+                    String formattedPrice = NumberFormat.currency(
+                      locale: 'vi_VN',
+                      symbol: '₫',
+                      decimalDigits: 0,
+                    ).format(price);
+                    
+                    return ListTile(
+                      leading: Image.network(
+                        item['image'] ??
+                            'https://via.placeholder.com/100',
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Image.asset(
+                            'images/placeholder.png',
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                          );
                         },
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: EdgeInsets.only(right: 20.0),
-                          child: Icon(
-                            Icons.delete,
-                            color: Colors.white,
-                          ),
-                        ),
-                        child: Card(
-                          elevation: 4.0,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    color: Colors.grey[300],
-                                  ),
-                                  child: item['image'] != null && item['image'].toString().isNotEmpty
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Image.network(
-                                          item['image'],
-                                          width: 80,
-                                          height: 80,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) {
-                                            print("Error loading image: $error");
-                                            // Hiển thị chữ cái đầu tiên của tên sản phẩm
-                                            final productName = item['name'] ?? 'Sản phẩm';
-                                            return Center(
-                                              child: Text(
-                                                productName.substring(0, 1).toUpperCase(),
-                                                style: TextStyle(
-                                                  fontSize: 24,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.grey[700],
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      )
-                                    : Center(
-                                        child: Text(
-                                          (item['name'] ?? 'SP').substring(0, 1).toUpperCase(),
-                                          style: TextStyle(
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                      ),
-                                ),
-                                SizedBox(width: 16.0),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item['name'] ?? 'Sản phẩm không xác định',
-                                        style: TextStyle(
-                                          fontSize: 16.0,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      SizedBox(height: 8.0),
-                                      Text(
-                                        "\$${item['price']}",
-                                        style: TextStyle(
-                                          fontSize: 16.0,
-                                          color: Colors.grey[700],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(Icons.remove),
-                                      onPressed: () {
-                                        if (item['quantity'] > 1) {
-                                          cartProvider.updateQuantity(
-                                            index,
-                                            item['quantity'] - 1,
-                                          );
-                                        }
-                                      },
-                                    ),
-                                    Text(
-                                      "${item['quantity']}",
-                                      style: TextStyle(
-                                        fontSize: 16.0,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.add),
-                                      onPressed: () {
-                                        cartProvider.updateQuantity(
-                                          index,
-                                          item['quantity'] + 1,
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
+                      ),
+                      title: Text(item['name'] ?? 'Unknown Product'),
+                      subtitle: Text('Số lượng: ${item['quantity']}'),
+                      trailing: Text(
+                        formattedPrice,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).primaryColor,
                         ),
                       ),
                     );
@@ -195,54 +106,52 @@ class _OrderState extends State<Order> {
                   ),
                 ],
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Tổng cộng:",
-                        style: TextStyle(
-                          fontSize: 14.0,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      Text(
-                        "\$${totalAmount.toStringAsFixed(2)}",
-                        style: TextStyle(
-                          fontSize: 20.0,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ],
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFff5722),
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 32.0,
-                        vertical: 12.0,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                    ),
-                    onPressed: _isLoading ? null : _placeOrder,
-                    child: _isLoading
-                        ? CircularProgressIndicator(color: Colors.white)
-                        : Text(
-                            "Đặt hàng",
-                            style: TextStyle(
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.bold,
-                            ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Tổng tiền:",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
-                  ),
-                ],
+                        ),
+                        Text(
+                          'Tổng tiền: ${NumberFormat.currency(
+                            locale: 'vi_VN',
+                            symbol: '₫',
+                            decimalDigits: 0,
+                          ).format(_calculateTotal(widget.cartItems))}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _placeOrder,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        minimumSize: Size(double.infinity, 50),
+                      ),
+                      child: _isLoading
+                          ? CircularProgressIndicator(color: Colors.white)
+                          : Text(
+                              "Đặt hàng",
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
               ),
             ),
     );
@@ -264,76 +173,21 @@ class _OrderState extends State<Order> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    // Tính tổng tiền
+    double totalAmount = _calculateTotal(widget.cartItems);
 
-    try {
-      // Lấy thông tin người dùng từ SharedPreferences
-      final userId = await SharedPreferenceHelper().getUserId();
-      if (userId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Vui lòng đăng nhập để đặt hàng')),
-        );
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // Tính tổng tiền
-      double totalAmount = 0;
-      for (var item in widget.cartItems) {
-        totalAmount += (item['price'] * item['quantity']);
-      }
-
-      // In ra thông tin chi tiết giỏ hàng để debug
-      print('Cart items for order:');
-      for (var item in widget.cartItems) {
-        print('- ID: ${item['id']}, Name: ${item['name']}, Price: ${item['price']}, Quantity: ${item['quantity']}');
-      }
-
-      // Gọi API tạo đơn hàng
-      final result = await ApiService.createOrder(
-        int.parse(userId!),
-        totalAmount,
-        widget.cartItems,
-      );
-
-      if (result != null && result['status'] == 'success') {
-        // Xóa giỏ hàng sau khi đặt hàng thành công
-        Provider.of<CartProvider>(context, listen: false).clearCart();
-        
-        // Hiển thị thông báo thành công
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đặt hàng thành công')),
-        );
-        
-        // Chuyển đến trang chủ
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => BottomNav()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đặt hàng thất bại')),
-        );
-      }
-    } catch (e) {
-      print('Error placing order: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e')),
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    // Chuyển đến trang thanh toán
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CheckoutPage(
+          cartItems: widget.cartItems,
+          totalAmount: totalAmount,
+        ),
+      ),
+    );
   }
 }
-
-
-
 
 
 

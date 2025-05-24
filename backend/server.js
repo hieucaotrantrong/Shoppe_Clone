@@ -257,9 +257,9 @@ app.post('/api/users/register', async (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
   try {
-    const { user_id, total_amount, items } = req.body;
+    const { user_id, total_amount, items, payment_method } = req.body;
 
-    console.log('Received order request:', JSON.stringify({ user_id, total_amount, items }, null, 2));
+    console.log('Received order request:', JSON.stringify({ user_id, total_amount, items, payment_method }, null, 2));
 
     if (!user_id || !total_amount || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ status: 'error', message: 'Invalid order data' });
@@ -270,94 +270,85 @@ app.post('/api/orders', async (req, res) => {
     await connection.beginTransaction();
 
     try {
+      // Nếu thanh toán bằng ví, kiểm tra số dư và trừ tiền
+      if (payment_method === 'wallet') {
+        // Kiểm tra số dư ví
+        const [walletRows] = await connection.query(
+          'SELECT * FROM wallets WHERE user_id = ?',
+          [user_id]
+        );
+
+        // Nếu ví không tồn tại hoặc số dư không đủ
+        if (walletRows.length === 0) {
+          await connection.rollback();
+          return res.status(400).json({
+            status: 'error',
+            message: 'Ví không tồn tại'
+          });
+        }
+
+        const wallet = walletRows[0];
+        const balance = parseFloat(wallet.balance);
+
+        if (balance < total_amount) {
+          await connection.rollback();
+          return res.status(400).json({
+            status: 'error',
+            message: 'Số dư ví không đủ để thanh toán'
+          });
+        }
+
+        // Trừ tiền từ ví
+        await connection.query(
+          'UPDATE wallets SET balance = balance - ? WHERE user_id = ?',
+          [total_amount, user_id]
+        );
+
+        // Tạo giao dịch ví
+        await connection.query(
+          `INSERT INTO wallet_transactions 
+           (user_id, amount, type, status, description, created_at) 
+           VALUES (?, ?, 'payment', 'completed', 'Thanh toán đơn hàng', NOW())`,
+          [user_id, total_amount]
+        );
+      }
+
       // Tạo đơn hàng
       const [orderResult] = await connection.query(
-        'INSERT INTO orders (user_id, total_amount, status) VALUES (?, ?, ?)',
-        [user_id, total_amount, 'pending']
+        'INSERT INTO orders (user_id, total_amount, status, payment_method) VALUES (?, ?, ?, ?)',
+        [user_id, total_amount, 'pending', payment_method || 'cod']
       );
 
       const orderId = orderResult.insertId;
 
       // Thêm các sản phẩm vào đơn hàng
       for (const item of items) {
-        // Đảm bảo product_id là số nguyên
-        const productId = parseInt(item.product_id || item.id);
-
-        if (isNaN(productId)) {
-          throw new Error(`Invalid product ID: ${item.product_id || item.id}`);
-        }
-
-        const quantity = parseInt(item.quantity) || 1;
-        const price = parseFloat(item.price) || 0;
-
-        // Lấy tên sản phẩm từ request
-        const productName = item.name;
-
-        console.log(`Adding item to order #${orderId}:`, {
-          product_id: productId,
-          name: productName,
-          quantity: quantity,
-          price: price
-        });
-
-        // Kiểm tra xem tên sản phẩm có null không
-        if (!productName) {
-          console.warn(`Warning: Product name is null for product_id ${productId}`);
-
-          // Nếu tên sản phẩm null, thử lấy từ bảng products
-          const [products] = await connection.query(
-            'SELECT name FROM products WHERE id = ?',
-            [productId]
-          );
-
-          if (products.length > 0 && products[0].name) {
-            console.log(`Found product name from database: ${products[0].name}`);
-            await connection.query(
-              'INSERT INTO order_items (order_id, product_id, name, quantity, price) VALUES (?, ?, ?, ?, ?)',
-              [orderId, productId, products[0].name, quantity, price]
-            );
-          } else {
-            // Nếu không tìm thấy, sử dụng ID sản phẩm
-            const fallbackName = `Sản phẩm #${productId}`;
-            console.log(`Using fallback name: ${fallbackName}`);
-            await connection.query(
-              'INSERT INTO order_items (order_id, product_id, name, quantity, price) VALUES (?, ?, ?, ?, ?)',
-              [orderId, productId, fallbackName, quantity, price]
-            );
-          }
-        } else {
-          // Nếu có tên sản phẩm, sử dụng nó
-          await connection.query(
-            'INSERT INTO order_items (order_id, product_id, name, quantity, price) VALUES (?, ?, ?, ?, ?)',
-            [orderId, productId, productName, quantity, price]
-          );
-        }
+        await connection.query(
+          'INSERT INTO order_items (order_id, product_id, name, price, quantity) VALUES (?, ?, ?, ?, ?)',
+          [orderId, item.id, item.name, item.price, item.quantity]
+        );
       }
 
       // Commit transaction
       await connection.commit();
-      connection.release();
 
-      res.status(201).json({
+      // Trả về kết quả thành công
+      return res.status(201).json({
         status: 'success',
         message: 'Order created successfully',
-        data: {
-          order_id: orderId,
-          user_id,
-          total_amount,
-          items
-        }
+        order_id: orderId,
+        payment_method: payment_method || 'cod'
       });
     } catch (error) {
       // Rollback nếu có lỗi
       await connection.rollback();
-      connection.release();
-      console.error('Transaction error:', error);
       throw error;
+    } finally {
+      connection.release();
     }
   } catch (error) {
     console.error('Error creating order:', error);
-    res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
 
@@ -497,120 +488,157 @@ app.get('/api/orders', async (req, res) => {
 /*---------------------------------
 - Api Update status order
 -----------------------------------*/
-app.put('/api/orders/:id/status', async (req, res) => {
+app.post('/api/orders/:id/status', async (req, res) => {
   try {
-    const { status, reason } = req.body;
     const orderId = req.params.id;
+    const { status, reason } = req.body;
 
-    console.log(`Updating order #${orderId} status to: ${status}`);
-    console.log('Request body:', req.body);
+    console.log(`Updating order ${orderId} to status: ${status}`);
 
-    if (!status) {
-      return res.status(400).json({ status: 'error', message: 'Status is required' });
-    }
+    // Lấy thông tin đơn hàng
+    const [orderRows] = await pool.query(
+      'SELECT o.*, u.name as user_name FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.id = ?',
+      [orderId]
+    );
 
-    // Kiểm tra trạng thái hợp lệ
-    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returning', 'returned'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        status: 'error',
-        message: `Invalid status. Valid values are: ${validStatuses.join(', ')}`
-      });
-    }
-
-    // Lấy thông tin đơn hàng hiện tại
-    const [orders] = await pool.query('SELECT * FROM orders WHERE id = ?', [orderId]);
-    if (orders.length === 0) {
+    if (orderRows.length === 0) {
       return res.status(404).json({ status: 'error', message: 'Order not found' });
     }
-    const order = orders[0];
 
-    // Lấy thông tin sản phẩm trong đơn hàng để hiển thị trong thông báo
-    const [items] = await pool.query('SELECT * FROM order_items WHERE order_id = ?', [orderId]);
-    let productText = '';
-    if (items.length > 0) {
-      if (items.length === 1) {
-        productText = items[0].name || `#${items[0].product_id}`;
+    const order = orderRows[0];
+
+    // Lấy thông tin sản phẩm trong đơn hàng
+    const [orderItems] = await pool.query(
+      'SELECT oi.*, p.name as product_name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?',
+      [orderId]
+    );
+
+    // Tạo mô tả sản phẩm cho thông báo
+    let productText = 'Đơn hàng của bạn';
+    if (orderItems.length > 0) {
+      const firstItem = orderItems[0];
+      const productName = firstItem.product_name || firstItem.name || 'Sản phẩm';
+
+      if (orderItems.length > 1) {
+        productText = `${productName} và ${orderItems.length - 1} sản phẩm khác`;
       } else {
-        productText = `(${items.length} sản phẩm)`;
+        productText = productName;
       }
     }
 
-    // Cập nhật trạng thái và lý do trả hàng nếu có
-    if (status === 'returning' && reason) {
-      await pool.query(
-        'UPDATE orders SET status = ?, return_reason = ? WHERE id = ?',
-        [status, reason, orderId]
-      );
-    } else {
-      await pool.query(
-        'UPDATE orders SET status = ? WHERE id = ?',
-        [status, orderId]
-      );
-    }
+    // Bắt đầu transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
 
-    // Cập nhật thời gian giao hàng nếu trạng thái là delivered
-    if (status === 'delivered') {
-      await pool.query(
-        'UPDATE orders SET delivered_at = NOW() WHERE id = ?',
-        [orderId]
-      );
-    }
+    try {
+      // Nếu trạng thái là 'returned' (đã chấp nhận trả hàng), thực hiện hoàn tiền
+      if (status === 'returned') {
+        // Kiểm tra phương thức thanh toán của đơn hàng
+        if (order.payment_method === 'wallet') {
+          // Lấy thông tin người dùng
+          const userId = order.user_id;
+          const totalAmount = parseFloat(order.total_amount);
 
-    // Tạo thông báo cho người dùng về việc cập nhật trạng thái đơn hàng
-    let title, message;
-    switch (status) {
-      case 'processing':
-        title = 'Đơn hàng đang được xử lý';
-        message = `Đơn hàng ${productText} của bạn đang được xử lý.`;
-        break;
-      case 'shipped':
-        title = 'Đơn hàng đang được giao';
-        message = `Đơn hàng ${productText} của bạn đang được giao đến bạn.`;
-        break;
-      case 'delivered':
-        if (order.status === 'returning') {
-          title = 'Yêu cầu trả hàng bị từ chối';
-          message = `Yêu cầu trả hàng cho đơn hàng ${productText} của bạn đã bị từ chối. Vui lòng liên hệ với chúng tôi để biết thêm chi tiết.`;
+          console.log(`Refunding ${totalAmount} to user ${userId}'s wallet`);
+
+          // Cập nhật số dư ví của người dùng
+          await connection.query(
+            'UPDATE wallets SET balance = balance + ? WHERE user_id = ?',
+            [totalAmount, userId]
+          );
+
+          // Tạo giao dịch ví với loại 'payment'
+          await connection.query(
+            `INSERT INTO wallet_transactions 
+             (user_id, amount, type, status, description, reference_id, created_at) 
+             VALUES (?, ?, 'payment', 'completed', ?, ?, NOW())`,
+            [userId, totalAmount, `Hoàn tiền đơn hàng ${productText}`, orderId]
+          );
+
+          console.log(`Refund completed for order ${orderId}`);
         } else {
-          title = 'Đơn hàng đã giao thành công';
-          message = `Đơn hàng ${productText} của bạn đã được giao thành công. Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!`;
+          console.log(`Order ${orderId} used payment method ${order.payment_method}, no wallet refund needed`);
         }
-        break;
-      case 'cancelled':
-        title = 'Đơn hàng đã bị hủy';
-        message = `Đơn hàng ${productText} của bạn đã bị hủy.`;
-        break;
-      case 'returning':
-        title = 'Yêu cầu trả hàng đã được ghi nhận';
-        message = `Yêu cầu trả hàng cho đơn hàng ${productText} của bạn đã được ghi nhận. Chúng tôi sẽ xem xét và phản hồi sớm.`;
-        break;
-      case 'returned':
-        title = 'Đơn hàng đã được trả thành công';
-        message = `Đơn hàng ${productText} của bạn đã được trả thành công. Tiền hoàn trả sẽ được chuyển lại cho bạn trong 3-5 ngày làm việc.`;
-        break;
-      default:
-        title = 'Cập nhật trạng thái đơn hàng';
-        message = `Đơn hàng ${productText} của bạn đã được cập nhật sang trạng thái ${status}.`;
+      }
+
+      // Cập nhật trạng thái và lý do trả hàng nếu có
+      if ((status === 'returning' || status === 'returned') && reason) {
+        await connection.query(
+          'UPDATE orders SET status = ?, return_reason = ? WHERE id = ?',
+          [status, reason, orderId]
+        );
+      } else {
+        await connection.query(
+          'UPDATE orders SET status = ? WHERE id = ?',
+          [status, orderId]
+        );
+      }
+
+      // Cập nhật thời gian giao hàng nếu trạng thái là delivered
+      if (status === 'delivered') {
+        await connection.query(
+          'UPDATE orders SET delivered_at = NOW() WHERE id = ?',
+          [orderId]
+        );
+      }
+
+      // Commit transaction
+      await connection.commit();
+
+      // Tạo thông báo cho người dùng về việc cập nhật trạng thái đơn hàng
+      let title, message;
+      switch (status) {
+        case 'processing':
+          title = 'Đơn hàng đang được xử lý';
+          message = `Đơn hàng ${productText} của bạn đang được xử lý.`;
+          break;
+        case 'shipped':
+          title = 'Đơn hàng đang được giao';
+          message = `Đơn hàng ${productText} của bạn đang được giao đến bạn.`;
+          break;
+        case 'delivered':
+          if (order.status === 'returning') {
+            title = 'Yêu cầu trả hàng bị từ chối';
+            message = `Yêu cầu trả hàng cho đơn hàng ${productText} của bạn đã bị từ chối.`;
+          } else {
+            title = 'Đơn hàng đã giao thành công';
+            message = `Đơn hàng ${productText} của bạn đã được giao thành công.`;
+          }
+          break;
+        case 'returned':
+          title = 'Đơn hàng đã được hoàn trả';
+          message = `Đơn hàng ${productText} của bạn đã được hoàn trả thành công. ${order.payment_method === 'wallet' ? 'Số tiền đã được hoàn vào ví của bạn.' : ''}`;
+          break;
+        case 'cancelled':
+          title = 'Đơn hàng đã bị hủy';
+          message = `Đơn hàng ${productText} của bạn đã bị hủy.`;
+          break;
+      }
+
+      // Tạo thông báo nếu có title và message
+      if (title && message) {
+        await pool.query(
+          'INSERT INTO notifications (user_id, title, message, created_at) VALUES (?, ?, ?, NOW())',
+          [order.user_id, title, message]
+        );
+      }
+
+      return res.json({
+        status: 'success',
+        message: `Order status updated to ${status} successfully`,
+        refunded: status === 'returned' && order.payment_method === 'wallet'
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
-
-    // Thêm thông báo vào database
-    await pool.query(
-      'INSERT INTO notifications (user_id, title, message, is_read) VALUES (?, ?, ?, ?)',
-      [order.user_id, title, message, 0]
-    );
-
-    res.json({
-      status: 'success',
-      message: 'Order status updated successfully',
-      data: { id: orderId, status }
-    });
   } catch (error) {
     console.error('Error updating order status:', error);
-    res.status(500).json({ status: 'error', message: error.message || 'Internal server error' });
+    res.status(500).json({ status: 'error', message: error.message });
   }
-});
-/*---------------------------------
+});/*---------------------------------
 - 
 -----------------------------------*/
 // Lấy tất cả sản phẩm với tùy chọn lọc theo danh mục và tìm kiếm
@@ -1491,6 +1519,298 @@ app.get('/api/orders/:id/items', async (req, res) => {
     });
   }
 });
+
+// API lấy lịch sử giao dịch
+app.get('/api/wallet/transactions/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    console.log(`Getting wallet transactions for user ${userId}`);
+
+    // Lấy lịch sử giao dịch
+    const [transactions] = await pool.query(
+      `SELECT * FROM wallet_transactions 
+       WHERE user_id = ? 
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    // Chuyển đổi amount từ String sang Number
+    const formattedTransactions = transactions.map(transaction => {
+      return {
+        ...transaction,
+        amount: parseFloat(transaction.amount)
+      };
+    });
+
+    console.log(`Found ${transactions.length} transactions for user ${userId}`);
+    return res.json({ transactions: formattedTransactions });
+  } catch (error) {
+    console.error('Error getting wallet transactions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API tạo yêu cầu nạp tiền
+app.post('/api/wallet/topup', async (req, res) => {
+  try {
+    console.log('Received top-up request:', req.body);
+    const { user_id, amount, payment_method } = req.body;
+
+    if (!user_id || !amount || !payment_method) {
+      console.log('Missing required fields:', { user_id, amount, payment_method });
+      return res.status(400).json({ status: 'error', message: 'Missing required fields' });
+    }
+
+    // Tạo yêu cầu nạp tiền với trạng thái 'pending'
+    const [result] = await pool.query(
+      `INSERT INTO wallet_topups 
+       (user_id, amount, payment_method, status, created_at) 
+       VALUES (?, ?, ?, 'pending', NOW())`,
+      [user_id, amount, payment_method]
+    );
+
+    console.log(`Created top-up request with ID ${result.insertId}`);
+
+    // Tạo giao dịch ví với trạng thái 'pending'
+    await pool.query(
+      `INSERT INTO wallet_transactions 
+       (user_id, amount, type, status, reference_id, created_at) 
+       VALUES (?, ?, 'top_up', 'pending', ?, NOW())`,
+      [user_id, amount, result.insertId]
+    );
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Top-up request created successfully',
+      request_id: result.insertId
+    });
+  } catch (error) {
+    console.error('Error creating top-up request:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// API lấy danh sách yêu cầu nạp tiền (cho admin)
+app.get('/api/admin/wallet/topups', async (req, res) => {
+  try {
+    const filter = req.query.filter || 'all';
+    console.log(`Getting top-up requests with filter: ${filter}`);
+
+    let query = `
+      SELECT t.*, u.name as user_name 
+      FROM wallet_topups t
+      LEFT JOIN users u ON t.user_id = u.id
+    `;
+
+    // Lọc theo trạng thái
+    if (filter !== 'all') {
+      query += ` WHERE t.status = '${filter}'`;
+    }
+
+    query += ` ORDER BY t.created_at DESC`;
+
+    const [topups] = await pool.query(query);
+    console.log(`Found ${topups.length} top-up requests with filter: ${filter}`);
+
+    // Chuyển đổi amount từ String sang Number
+    const formattedTopups = topups.map(topup => {
+      return {
+        ...topup,
+        amount: parseFloat(topup.amount)
+      };
+    });
+
+    return res.json({ topups: formattedTopups });
+  } catch (error) {
+    console.error('Error getting top-up requests:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API xác nhận yêu cầu nạp tiền (cho admin)
+app.post('/api/admin/wallet/topups/:id/approve', async (req, res) => {
+  try {
+    const topupId = req.params.id;
+    console.log(`Approving top-up request with ID: ${topupId}`);
+
+    // Lấy thông tin yêu cầu nạp tiền
+    const [topupRows] = await pool.query(
+      'SELECT * FROM wallet_topups WHERE id = ?',
+      [topupId]
+    );
+
+    if (topupRows.length === 0) {
+      return res.status(404).json({ error: 'Top-up request not found' });
+    }
+
+    const topup = topupRows[0];
+
+    // Kiểm tra xem yêu cầu đã được xử lý chưa
+    if (topup.status !== 'pending') {
+      return res.status(400).json({
+        error: 'This top-up request has already been processed'
+      });
+    }
+
+    // Bắt đầu transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Cập nhật trạng thái yêu cầu nạp tiền
+      await connection.query(
+        'UPDATE wallet_topups SET status = "completed", updated_at = NOW() WHERE id = ?',
+        [topupId]
+      );
+
+      // Cập nhật trạng thái giao dịch ví
+      await connection.query(
+        'UPDATE wallet_transactions SET status = "completed", updated_at = NOW() WHERE reference_id = ? AND type = "top_up"',
+        [topupId]
+      );
+
+      // Cập nhật số dư ví
+      await connection.query(
+        'UPDATE wallets SET balance = balance + ? WHERE user_id = ?',
+        [topup.amount, topup.user_id]
+      );
+
+      await connection.commit();
+      console.log(`Top-up request ${topupId} approved successfully`);
+
+      return res.json({
+        status: 'success',
+        message: 'Top-up request approved successfully'
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error approving top-up request:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API từ chối yêu cầu nạp tiền (cho admin)
+app.post('/api/admin/wallet/topups/:id/reject', async (req, res) => {
+  try {
+    const topupId = req.params.id;
+    console.log(`Rejecting top-up request with ID: ${topupId}`);
+
+    // Lấy thông tin yêu cầu nạp tiền
+    const [topupRows] = await pool.query(
+      'SELECT * FROM wallet_topups WHERE id = ?',
+      [topupId]
+    );
+
+    if (topupRows.length === 0) {
+      return res.status(404).json({ error: 'Top-up request not found' });
+    }
+
+    const topup = topupRows[0];
+
+    // Kiểm tra xem yêu cầu đã được xử lý chưa
+    if (topup.status !== 'pending') {
+      return res.status(400).json({
+        error: 'This top-up request has already been processed'
+      });
+    }
+
+    // Bắt đầu transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Cập nhật trạng thái yêu cầu nạp tiền
+      await connection.query(
+        'UPDATE wallet_topups SET status = "rejected", updated_at = NOW() WHERE id = ?',
+        [topupId]
+      );
+
+      // Cập nhật trạng thái giao dịch ví
+      await connection.query(
+        'UPDATE wallet_transactions SET status = "rejected", updated_at = NOW() WHERE reference_id = ? AND type = "top_up"',
+        [topupId]
+      );
+
+      await connection.commit();
+      console.log(`Top-up request ${topupId} rejected successfully`);
+
+      return res.json({
+        status: 'success',
+        message: 'Top-up request rejected successfully'
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error rejecting top-up request:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Kiểm tra xem route này đã được định nghĩa chưa
+app.get('/api/wallet/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    console.log(`Getting wallet balance for user ${userId}`);
+
+    // Kiểm tra xem ví đã tồn tại chưa
+    const [walletRows] = await pool.query(
+      'SELECT * FROM wallets WHERE user_id = ?',
+      [userId]
+    );
+
+    // Nếu ví chưa tồn tại, tạo ví mới với số dư 0
+    if (walletRows.length === 0) {
+      console.log(`Creating new wallet for user ${userId}`);
+      await pool.query(
+        'INSERT INTO wallets (user_id, balance) VALUES (?, 0)',
+        [userId]
+      );
+
+      return res.json({ balance: 0 });
+    }
+
+    console.log(`Wallet found for user ${userId}, balance: ${walletRows[0].balance}`);
+    // Trả về số dư ví dưới dạng số, không phải chuỗi
+    return res.json({ balance: parseFloat(walletRows[0].balance) });
+  } catch (error) {
+    console.error('Error getting wallet balance:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Khi lấy danh sách sản phẩm
+app.get('/api/products', async (req, res) => {
+  try {
+    const [products] = await pool.query('SELECT * FROM products');
+
+    // Đảm bảo giá được trả về dưới dạng số
+    const formattedProducts = products.map(product => {
+      return {
+        ...product,
+        price: parseFloat(product.price)
+      };
+    });
+
+    res.json({
+      status: 'success',
+      data: formattedProducts
+    });
+  } catch (error) {
+    console.error('Error getting products:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+
 
 
 

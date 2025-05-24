@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:food_app/pages/admin/manage_products.dart';
-import 'package:food_app/pages/login.dart';
-import 'package:food_app/services/shared_pref.dart';
 import 'package:food_app/pages/admin/manage_orders.dart';
 import 'package:food_app/pages/admin/manage_users.dart';
 import 'package:food_app/pages/admin/admin_chat_list.dart';
+import 'package:food_app/pages/admin/manage_wallet_topups.dart';
+import 'package:food_app/pages/login.dart';
+import 'package:food_app/services/shared_pref.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({Key? key}) : super(key: key);
@@ -156,12 +157,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 15,
-      mainAxisSpacing: 15,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
       children: [
         _buildDashboardCard(
-          "Sản phẩm",
-          Icons.shopping_bag,
+          'Quản lý sản phẩm',
+          Icons.inventory,
           Colors.blue,
           () {
             Navigator.push(
@@ -171,20 +172,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
           },
         ),
         _buildDashboardCard(
-          "Người dùng",
-          Icons.people,
+          'Quản lý đơn hàng',
+          Icons.shopping_bag,
           Colors.green,
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ManageUsers()),
-            );
-          },
-        ),
-        _buildDashboardCard(
-          "Đơn hàng",
-          Icons.shopping_cart,
-          Colors.orange,
           () {
             Navigator.push(
               context,
@@ -193,12 +183,38 @@ class _AdminDashboardState extends State<AdminDashboard> {
           },
         ),
         _buildDashboardCard(
-          "Demo",
-          Icons.bar_chart,
-          Colors.purple,
-          () {},
+          'Quản lý người dùng',
+          Icons.people,
+          Colors.orange,
+          () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ManageUsers()),
+            );
+          },
         ),
-        _buildChatButton(context),
+        _buildDashboardCard(
+          'Tin nhắn',
+          Icons.chat,
+          Colors.purple,
+          () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => AdminChatList()),
+            );
+          },
+        ),
+        _buildDashboardCard(
+          'Quản lý nạp tiền',
+          Icons.account_balance_wallet,
+          Colors.red,
+          () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ManageWalletTopUps()),
+            );
+          },
+        ),
       ],
     );
   }
@@ -321,3 +337,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 }
+
+
+
+
+
+
