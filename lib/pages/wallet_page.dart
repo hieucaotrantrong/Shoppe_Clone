@@ -444,7 +444,7 @@ class _WalletPageState extends State<WalletPage> {
                   ),
                   SizedBox(height: 16),
                   Text(
-                    'Lưu ý: Trong tình huống thực tế, bạn sẽ được chuyển đến cổng thanh toán VNPay để hoàn tất giao dịch.',
+                    'Lưu ý: Trong tình huống thực tế, nếu có vấn đề về nạp tiền vui lòng nhắn tin admin để được hỗ trợ.',
                     style: TextStyle(
                       fontStyle: FontStyle.italic,
                       color: Colors.blue,
@@ -605,30 +605,37 @@ class _WalletPageState extends State<WalletPage> {
           amount = transaction['amount']?.toDouble() ?? 0.0;
         }
 
-        final isTopUp = transaction['type'] == 'top_up';
+        final type = transaction['type'];
         final status = transaction['status'];
-
+        final description = transaction['description'] ?? '';
+        
+        // Xác định loại giao dịch và hiển thị dấu
+        bool isIncoming = type == 'top_up' || 
+                          (type == 'payment' && description.toLowerCase().contains('hoàn tiền'));
+        
         return Card(
           margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: isTopUp ? Colors.green : Colors.red,
+              backgroundColor: isIncoming ? Colors.green : Colors.red,
               child: Icon(
-                isTopUp ? Icons.add : Icons.remove,
+                isIncoming ? Icons.add : Icons.remove,
                 color: Colors.white,
               ),
             ),
             title: Text(
-              isTopUp ? 'Nạp tiền' : 'Thanh toán',
+              isIncoming 
+                ? (type == 'top_up' ? 'Nạp tiền' : 'Hoàn tiền') 
+                : 'Thanh toán',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
               'Trạng thái: ${_getStatusText(status)}',
             ),
             trailing: Text(
-              '${isTopUp ? '+' : '-'} ${_formatCurrency(amount)}',
+              '${isIncoming ? '+' : '-'} ${_formatCurrency(amount)}',
               style: TextStyle(
-                color: isTopUp ? Colors.green : Colors.red,
+                color: isIncoming ? Colors.green : Colors.red,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -658,3 +665,5 @@ class _WalletPageState extends State<WalletPage> {
     }
   }
 }
+
+
