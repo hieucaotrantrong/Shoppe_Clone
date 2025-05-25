@@ -1361,7 +1361,7 @@ app.post('/api/chat/messages', async (req, res) => {
       [userId, sender, message]
     );
 
-    console.log('Message saved successfully, ID:', result.insertId);
+
 
     res.json({
       status: 'success',
@@ -1809,12 +1809,3 @@ app.get('/api/products', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
-
-
-
-
-
-
-
-
-

@@ -187,11 +187,45 @@ class _CheckoutPageState extends State<CheckoutPage> {
                               itemBuilder: (context, index) {
                                 final item = widget.cartItems[index];
                                 return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  padding: const EdgeInsets.only(bottom: 12.0),
                                   child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
                                     children: [
+                                      // Thêm ảnh sản phẩm
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: item['image'] != null &&
+                                                item['image']
+                                                    .toString()
+                                                    .isNotEmpty
+                                            ? Image.network(
+                                                item['image'],
+                                                width: 50,
+                                                height: 50,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error,
+                                                    stackTrace) {
+                                                  return Container(
+                                                    width: 50,
+                                                    height: 50,
+                                                    color: Colors.grey[300],
+                                                    child: Icon(
+                                                        Icons
+                                                            .image_not_supported,
+                                                        color:
+                                                            Colors.grey[600]),
+                                                  );
+                                                },
+                                              )
+                                            : Container(
+                                                width: 50,
+                                                height: 50,
+                                                color: Colors.grey[300],
+                                                child: Icon(Icons.fastfood,
+                                                    color: Colors.grey[600]),
+                                              ),
+                                      ),
+                                      SizedBox(width: 12),
+                                      // Thông tin sản phẩm
                                       Expanded(
                                         child: Text(
                                           '${item['name']} x ${item['quantity']}',

@@ -115,10 +115,10 @@ class ApiService {
 
   // Tạo đơn hàng mới
   static Future<Map<String, dynamic>?> createOrder(
-      int userId,
-      double totalAmount,
-      List<Map<String, dynamic>> items, {
-      String paymentMethod = 'cod', // Mặc định là thanh toán khi nhận hàng
+    int userId,
+    double totalAmount,
+    List<Map<String, dynamic>> items, {
+    String paymentMethod = 'cod', // Mặc định là thanh toán khi nhận hàng
   }) async {
     try {
       final response = await http.post(
@@ -135,7 +135,8 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
       } else {
-        print('Error creating order: ${response.statusCode} - ${response.body}');
+        print(
+            'Error creating order: ${response.statusCode} - ${response.body}');
         return null;
       }
     } catch (e) {
@@ -262,7 +263,8 @@ class ApiService {
 
   // Cập nhật trạng thái đơn hàng
   static Future<Map<String, dynamic>?> updateOrderStatus(
-      String orderId, String status, {String? reason}) async {
+      String orderId, String status,
+      {String? reason}) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/orders/$orderId/status'),
@@ -273,12 +275,14 @@ class ApiService {
         }),
       );
 
-      print('Update order status response: ${response.statusCode} - ${response.body}');
+      print(
+          'Update order status response: ${response.statusCode} - ${response.body}');
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('Error updating order status: ${response.statusCode} - ${response.body}');
+        print(
+            'Error updating order status: ${response.statusCode} - ${response.body}');
         return null;
       }
     } catch (e) {
@@ -1011,7 +1015,7 @@ class ApiService {
     try {
       final url = '$baseUrl/admin/wallet/topups?filter=$filter';
       print('Getting top-up requests with URL: $url');
-      
+
       final response = await http.get(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
@@ -1023,7 +1027,7 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final topups = List<Map<String, dynamic>>.from(data['topups']);
-        
+
         // Chuyển đổi amount từ String sang double
         for (var topup in topups) {
           if (topup['amount'] is String) {
@@ -1032,7 +1036,7 @@ class ApiService {
             topup['amount'] = topup['amount'].toDouble();
           }
         }
-        
+
         return topups;
       } else {
         print('Error response: ${response.statusCode} - ${response.body}');
@@ -1051,7 +1055,7 @@ class ApiService {
       // Sửa đường dẫn API - loại bỏ /api/ trùng lặp
       final url = '$baseUrl/admin/wallet/topups/$requestId/approve';
       print('Approving top-up request with URL: $url');
-      
+
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
@@ -1079,7 +1083,7 @@ class ApiService {
       // Sửa đường dẫn API - loại bỏ /api/ trùng lặp
       final url = '$baseUrl/admin/wallet/topups/$requestId/reject';
       print('Rejecting top-up request with URL: $url');
-      
+
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
@@ -1100,16 +1104,3 @@ class ApiService {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

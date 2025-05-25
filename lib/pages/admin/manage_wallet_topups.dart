@@ -13,7 +13,7 @@ class ManageWalletTopUps extends StatefulWidget {
 class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _topUps = [];
-  String _filter = 'pending'; // 'pending', 'completed', 'all'
+  String _filter = 'pending';
 
   @override
   void initState() {
@@ -28,7 +28,7 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
 
     try {
       final requests = await ApiService.getWalletTopUpRequests(_filter);
-      
+
       setState(() {
         _topUps = requests;
         _isLoading = false;
@@ -38,7 +38,7 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
       setState(() {
         _isLoading = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Không thể tải yêu cầu nạp tiền: $e')),
       );
@@ -48,14 +48,14 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
   Future<void> _approveTopUp(String requestId) async {
     try {
       final result = await ApiService.approveWalletTopUp(requestId);
-      
+
       if (result != null && result['status'] == 'success') {
         Fluttertoast.showToast(
           msg: "Đã xác nhận nạp tiền thành công",
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.BOTTOM,
         );
-        
+
         // Tải lại danh sách yêu cầu
         _loadTopUpRequests();
       } else {
@@ -74,14 +74,14 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
   Future<void> _rejectTopUp(String requestId) async {
     try {
       final result = await ApiService.rejectWalletTopUp(requestId);
-      
+
       if (result != null && result['status'] == 'success') {
         Fluttertoast.showToast(
           msg: "Đã từ chối yêu cầu nạp tiền",
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.BOTTOM,
         );
-        
+
         // Tải lại danh sách yêu cầu
         _loadTopUpRequests();
       } else {
@@ -119,7 +119,7 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
               ],
             ),
           ),
-          
+
           // List of top-up requests
           Expanded(
             child: _buildTopUpList(),
@@ -131,7 +131,7 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
 
   Widget _buildFilterChip(String label, String value) {
     final isSelected = _filter == value;
-    
+
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
@@ -150,7 +150,7 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
   Widget _buildStatusChip(String status) {
     Color color;
     String label;
-    
+
     switch (status) {
       case 'pending':
         color = Colors.orange;
@@ -168,7 +168,7 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
         color = Colors.grey;
         label = 'Không xác định';
     }
-    
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -202,7 +202,7 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
       itemCount: _topUps.length,
       itemBuilder: (context, index) {
         final topUp = _topUps[index];
-        
+
         // Chuyển đổi amount từ String sang double nếu cần
         double amount;
         if (topUp['amount'] is String) {
@@ -210,13 +210,13 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
         } else {
           amount = topUp['amount']?.toDouble() ?? 0.0;
         }
-        
+
         final status = topUp['status'];
         final userName = topUp['user_name'] ?? 'Người dùng';
         final createdAt = topUp['created_at'] != null
             ? DateTime.parse(topUp['created_at'])
             : DateTime.now();
-        
+
         return Card(
           margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Padding(
@@ -289,6 +289,3 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
         .format(amount);
   }
 }
-
-
-
