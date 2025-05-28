@@ -3,6 +3,7 @@ import 'package:food_app/pages/details.dart';
 import 'package:food_app/providers/cart_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -56,22 +57,24 @@ class ProductCard extends StatelessWidget {
                     const BorderRadius.vertical(top: Radius.circular(15)),
                 child: product['ImagePath'] != null &&
                         product['ImagePath'].isNotEmpty
-                    ? Image.network(
-                        product['ImagePath'],
+                    ? CachedNetworkImage(
+                        imageUrl: product['ImagePath'],
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[300],
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                        errorWidget: (context, url, error) {
                           return Container(
                             color: Colors.grey[300],
-                            child: Icon(Icons.image_not_supported,
-                                size: 40, color: Colors.grey[600]),
+                            child: Icon(Icons.image_not_supported, size: 40),
                           );
                         },
                       )
                     : Container(
                         color: Colors.grey[300],
-                        child: Icon(Icons.image_not_supported,
-                            size: 40, color: Colors.grey[600]),
+                        child: Icon(Icons.image_not_supported, size: 40),
                       ),
               ),
             ),
@@ -193,10 +196,16 @@ class ShopeeStyleProductCard extends StatelessWidget {
                     ),
                     child: product["ImagePath"] != null &&
                             product["ImagePath"].toString().isNotEmpty
-                        ? Image.network(
-                            product["ImagePath"],
+                        ? CachedNetworkImage(
+                            imageUrl: product["ImagePath"],
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey[200],
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                            errorWidget: (context, url, error) {
+                              print(
+                                  "Error loading image: $error for URL: $url");
                               return Container(
                                 color: Colors.grey[200],
                                 child:
@@ -309,8 +318,6 @@ class ShopeeStyleProductCard extends StatelessWidget {
     ).format(price);
   }
 }
-
-
 
 
 

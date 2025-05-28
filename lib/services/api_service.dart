@@ -1,17 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math'; // Thêm import này cho hàm min
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 class ApiService {
-  // Cập nhật baseUrl để không có "api/" ở cuối
   static const String baseUrl = 'http://localhost:3001/api';
+  // static const String baseUrl = 'http://10.0.2.2:3001/api';
+  // static const String baseUrl = 'http://192.168.88.250:3001/api';
   static const Duration requestTimeout = Duration(seconds: 10);
+/*---------------------------------
+Đăng ký người dùng mới
+-----------------------------------*/
 
-  // Đăng ký người dùng mới
   static Future<Map<String, dynamic>?> register(
       String name, String email, String password) async {
     try {
@@ -38,12 +41,13 @@ class ApiService {
     }
   }
 
-  // Đăng nhập với timeout
+/*---------------------------------
+Đăng nhập với timeout
+ -----------------------------------*/
+
   static Future<Map<String, dynamic>?> login(
       String email, String password) async {
     try {
-      print('Attempting to login with URL: $baseUrl/users/login'); // Debug log
-
       final response = await http
           .post(
             Uri.parse('$baseUrl/users/login'),
@@ -54,8 +58,6 @@ class ApiService {
             }),
           )
           .timeout(requestTimeout);
-
-      print('Login response status: ${response.statusCode}'); // Debug log
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -113,12 +115,17 @@ class ApiService {
     }
   }
 
-  // Tạo đơn hàng mới
+/*---------------------------------
+Tạo đơn hàng mới
+ -----------------------------------*/
+
   static Future<Map<String, dynamic>?> createOrder(
     int userId,
     double totalAmount,
     List<Map<String, dynamic>> items, {
-    String paymentMethod = 'cod', // Mặc định là thanh toán khi nhận hàng
+    String paymentMethod = 'cod',
+    String? address,
+    String? phone,
   }) async {
     try {
       final response = await http.post(
@@ -128,7 +135,9 @@ class ApiService {
           'user_id': userId,
           'total_amount': totalAmount,
           'items': items,
-          'payment_method': paymentMethod, // Thêm phương thức thanh toán
+          'payment_method': paymentMethod,
+          'shipping_address': address,
+          'phone': phone,
         }),
       );
 
@@ -145,7 +154,10 @@ class ApiService {
     }
   }
 
-  // Thêm sản phẩm mới
+/*---------------------------------
+Thêm sản phẩm mới (cho admin)
+-----------------------------------*/
+
   static Future<Map<String, dynamic>?> createProduct(
       Map<String, dynamic> productData) async {
     try {
@@ -168,7 +180,6 @@ class ApiService {
     }
   }
 
-  // Cập nhật sản phẩm - đảm bảo tham số id là String
   static Future<Map<String, dynamic>?> updateProduct(
       String id, Map<String, dynamic> productData) async {
     try {
@@ -191,7 +202,11 @@ class ApiService {
     }
   }
 
-  // Xóa sản phẩm - đảm bảo tham số id là String
+/*---------------------------------
+Xóa sản phẩm - đảm bảo tham số id
+ là String
+-----------------------------------*/
+
   static Future<Map<String, dynamic>?> deleteProduct(String id) async {
     try {
       final response = await http.delete(
@@ -212,7 +227,10 @@ class ApiService {
     }
   }
 
-  // Lấy tất cả đơn hàng (cho admin)
+/*---------------------------------
+ Lấy tất cả đơn hàng (cho admin)
+-----------------------------------*/
+
   static Future<List<Map<String, dynamic>>> getAllOrders() async {
     try {
       print('Fetching all orders from API...');
@@ -225,14 +243,11 @@ class ApiService {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         if (data['status'] == 'success' && data['data'] != null) {
-          // Chuyển đổi dữ liệu thành List<Map<String, dynamic>>
           final List<dynamic> rawOrders = data['data'];
           final orders = rawOrders.map((order) {
-            // Đảm bảo mỗi đơn hàng là Map<String, dynamic>
             final Map<String, dynamic> orderMap =
                 Map<String, dynamic>.from(order);
 
-            // Đảm bảo items là List<Map<String, dynamic>>
             if (orderMap['items'] != null) {
               final List<dynamic> rawItems = orderMap['items'];
               orderMap['items'] = rawItems
@@ -261,7 +276,10 @@ class ApiService {
     }
   }
 
-  // Cập nhật trạng thái đơn hàng
+/*---------------------------------
+Cập nhật trạng thái đơn hàng
+-----------------------------------*/
+
   static Future<Map<String, dynamic>?> updateOrderStatus(
       String orderId, String status,
       {String? reason}) async {
@@ -291,7 +309,10 @@ class ApiService {
     }
   }
 
-  // Thêm phương thức để lấy danh sách sản phẩm
+/*---------------------------------
+Thêm phương thức để lấy danh sách sản phẩm
+-----------------------------------*/
+
   static Future<List<Map<String, dynamic>>> getProductsList() async {
     try {
       final response = await http.get(
@@ -313,7 +334,10 @@ class ApiService {
     }
   }
 
-  // Lấy tất cả người dùng (cho admin)
+/*---------------------------------
+Lấy tất cả người dùng (cho admin)
+-----------------------------------*/
+
   static Future<List<Map<String, dynamic>>> getAllUsers() async {
     try {
       print('Fetching all users from API...');
@@ -345,7 +369,10 @@ class ApiService {
     }
   }
 
-  // Tạo người dùng mới (cho admin)
+/*---------------------------------
+ Tạo người dùng mới (cho admin)
+-----------------------------------*/
+
   static Future<Map<String, dynamic>?> createUser(
       String name, String email, String password, String role) async {
     try {
@@ -375,7 +402,10 @@ class ApiService {
     }
   }
 
-  // Cập nhật người dùng (cho admin)
+/*---------------------------------
+  Cập nhật người dùng (cho admin)
+-----------------------------------*/
+
   static Future<Map<String, dynamic>?> updateUser(
       String userId, String name, String email, String? password, String role,
       {String? profileImage}) async {
@@ -386,7 +416,6 @@ class ApiService {
         'role': role,
       };
 
-      // Chỉ thêm mật khẩu nếu được cung cấp
       if (password != null && password.isNotEmpty) {
         userData['password'] = password;
       }
@@ -412,7 +441,10 @@ class ApiService {
     }
   }
 
-  // Xóa người dùng (cho admin)
+/*---------------------------------
+ Xóa người dùng (cho admin)
+-----------------------------------*/
+
   static Future<Map<String, dynamic>?> deleteUser(String userId) async {
     try {
       final response = await http
@@ -471,10 +503,13 @@ class ApiService {
     }
   }
 
-  // Kiểm tra xem ứng dụng đang chạy trên web hay không
+/*---------------------------------
+Kiểm tra xem ứng dụng đang chạy 
+trên web hay không
+-----------------------------------*/
+
   static bool get isWeb => kIsWeb;
 
-  // Upload ảnh đại diện (phiên bản web)
   static Future<String?> uploadProfileImageWeb(
       String userId, Uint8List imageBytes, String fileName) async {
     try {
@@ -482,13 +517,11 @@ class ApiService {
       print("Image file name: $fileName");
       print("Image size: ${imageBytes.length} bytes");
 
-      // Tạo request multipart
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/upload-profile-image'),
       );
 
-      // Thêm file ảnh vào request (dạng bytes cho web)
       var multipartFile = http.MultipartFile.fromBytes(
         'image',
         imageBytes,
@@ -497,15 +530,12 @@ class ApiService {
       );
       request.files.add(multipartFile);
 
-      // Thêm userId vào request
       request.fields['user_id'] = userId;
 
       print('Sending web profile image upload request to: ${request.url}');
 
-      // Gửi request
       var streamedResponse = await request.send().timeout(Duration(minutes: 2));
 
-      // Đọc response
       var response = await http.Response.fromStream(streamedResponse);
       print('Upload response status: ${response.statusCode}');
       print('Upload response body: ${response.body}');
@@ -529,11 +559,13 @@ class ApiService {
     }
   }
 
-  // Upload ảnh đại diện
+/*---------------------------------
+Upload ảnh đại diện 
+-----------------------------------*/
+
   static Future<String?> uploadProfileImage(
       String userId, File imageFile) async {
     try {
-      // Kiểm tra xem file có tồn tại không
       if (!await imageFile.exists()) {
         print("Image file does not exist: ${imageFile.path}");
         return null;
@@ -543,20 +575,17 @@ class ApiService {
       print("Image file path: ${imageFile.path}");
       print("Image file size: ${await imageFile.length()} bytes");
 
-      // Tạo request multipart
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/upload-profile-image'),
       );
 
-      // Thêm file ảnh vào request
       var multipartFile = await http.MultipartFile.fromPath(
         'image',
         imageFile.path,
       );
       request.files.add(multipartFile);
 
-      // Thêm userId vào request
       request.fields['user_id'] = userId;
 
       print('Sending profile image upload request to: ${request.url}');
@@ -564,10 +593,8 @@ class ApiService {
       print('Image file name: ${multipartFile.filename}');
       print('Image content type: ${multipartFile.contentType}');
 
-      // Gửi request với timeout dài hơn cho upload file
       var streamedResponse = await request.send().timeout(Duration(minutes: 2));
 
-      // Đọc response
       var response = await http.Response.fromStream(streamedResponse);
       print('Upload response status: ${response.statusCode}');
       print('Upload response body: ${response.body}');
@@ -591,7 +618,10 @@ class ApiService {
     }
   }
 
-  // Cập nhật thông tin cá nhân (cho người dùng)
+/*---------------------------------
+Cập nhật thông tin cá nhân (cho người dùng)
+-----------------------------------*/
+
   static Future<Map<String, dynamic>?> updateUserProfile(
     String userId,
     String name,
@@ -605,17 +635,14 @@ class ApiService {
         'email': email,
       };
 
-      // Chỉ thêm mật khẩu nếu được cung cấp
       if (password != null && password.isNotEmpty) {
         userData['password'] = password;
       }
 
-      // Thêm ảnh đại diện nếu được cung cấp
       if (profileImage != null) {
         userData['profile_image'] = profileImage;
       }
 
-      // Sử dụng endpoint /api/users/:id thay vì /api/users/profile/:id
       final response = await http
           .put(
             Uri.parse('$baseUrl/users/$userId'),
@@ -637,7 +664,10 @@ class ApiService {
     }
   }
 
-  // Lấy thông báo của người dùng
+/*---------------------------------
+ Lấy thông báo của người dùng
+-----------------------------------*/
+
   static Future<List<Map<String, dynamic>>> getUserNotifications(
       String userId) async {
     try {
@@ -666,7 +696,10 @@ class ApiService {
     }
   }
 
-  // Đánh dấu thông báo đã đọc
+/*---------------------------------
+Đánh dấu thông báo đã đọc
+-----------------------------------*/
+
   static Future<bool> markNotificationAsRead(String notificationId) async {
     try {
       final response = await http
@@ -685,11 +718,13 @@ class ApiService {
     }
   }
 
-  // Lấy tin nhắn chat của người dùng
+/*---------------------------------
+Lấy tin nhắn chat của người dùng
+-----------------------------------*/
+
   static Future<List<Map<String, dynamic>>> getChatMessages(
       String userId) async {
     try {
-      // Thêm timestamp để tránh cache hoàn toàn
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final response = await http.get(
         Uri.parse('$baseUrl/chat/messages/$userId?t=$timestamp'),
@@ -714,7 +749,9 @@ class ApiService {
     }
   }
 
-  // Gửi tin nhắn chat
+/*---------------------------------
+ Gửi tin nhắn chat
+ -----------------------------------*/
   static Future<bool> sendChatMessage(
       String userId, String message, String sender) async {
     try {
@@ -748,7 +785,10 @@ class ApiService {
     }
   }
 
-  // Lấy danh sách người dùng có tin nhắn (cho admin)
+/*---------------------------------
+ Lấy danh sách người dùng có tin nhắn (cho admin)
+    -----------------------------------*/
+
   static Future<List<Map<String, dynamic>>> getChatUsers() async {
     try {
       final response = await http
@@ -768,10 +808,12 @@ class ApiService {
     }
   }
 
-  // Đánh dấu tin nhắn đã đọc
+/*---------------------------------
+ Đánh dấu tin nhắn đã đọc
+-----------------------------------*/
+
   static Future<bool> markMessagesAsRead(String userId, String sender) async {
     try {
-      // Thêm timestamp để tránh cache
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final response = await http
           .post(
@@ -792,7 +834,10 @@ class ApiService {
     }
   }
 
-  // Lấy số lượng tin nhắn chưa đọc
+/*---------------------------------
+Lấy số lượng tin nhắn chưa đọc
+-----------------------------------*/
+
   static Future<int> getUnreadMessageCount(String userId) async {
     try {
       final response = await http.get(
@@ -811,10 +856,13 @@ class ApiService {
     }
   }
 
-  // Hàm để lấy danh sách đơn hàng của người dùng
+/*---------------------------------
+Hàm để lấy danh sách đơn 
+hàng của người dùng
+-----------------------------------*/
+
   static Future<List<Map<String, dynamic>>> getUserOrders(String userId) async {
     try {
-      // Sửa URL để khớp với endpoint của server
       final url = '$baseUrl/orders?user_id=$userId';
       print('Calling API: $url');
 
@@ -846,11 +894,13 @@ class ApiService {
     }
   }
 
-  // Cập nhật hàm để lấy các mục trong đơn hàng
+/*---------------------------------
+Cập nhật hàm để lấy các mục trong đơn hàng
+-----------------------------------*/
+
   static Future<List<Map<String, dynamic>>> getOrderItems(
       String orderId) async {
     try {
-      // Sửa đường dẫn API - loại bỏ /api/ trùng lặp
       final response = await http.get(
         Uri.parse('$baseUrl/orders/$orderId/items'),
         headers: {'Content-Type': 'application/json'},
@@ -863,22 +913,17 @@ class ApiService {
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
 
-        // Kiểm tra cấu trúc response
         if (responseData is Map && responseData.containsKey('data')) {
-          // Nếu response có dạng {status: success, data: [...]}
           final List<dynamic> items = responseData['data'];
           return items.map((item) => item as Map<String, dynamic>).toList();
         } else if (responseData is Map && responseData.containsKey('status')) {
-          // Nếu response có dạng {status: success} nhưng không có data
           print('API returned success but no data');
           return [];
         } else if (responseData is List) {
-          // Nếu response trực tiếp là một mảng
           return responseData
               .map((item) => item as Map<String, dynamic>)
               .toList();
         } else {
-          // Trường hợp khác
           print('Unexpected response format: ${responseData.runtimeType}');
           return [];
         }
@@ -890,10 +935,12 @@ class ApiService {
     }
   }
 
-  // Phương thức lấy số dư ví
+/*---------------------------------
+Phương thức lấy số dư ví
+    -----------------------------------*/
+
   static Future<Map<String, dynamic>> getWalletBalance(String userId) async {
     try {
-      // Thử các đường dẫn khác nhau
       final possibleUrls = [
         '$baseUrl/wallet/$userId',
         '$baseUrl/wallets/$userId',
@@ -915,7 +962,6 @@ class ApiService {
           if (response.statusCode == 200) {
             final data = json.decode(response.body);
 
-            // Đảm bảo balance là số
             if (data['balance'] is String) {
               data['balance'] = double.parse(data['balance']);
             } else if (data['balance'] is int) {
@@ -936,7 +982,9 @@ class ApiService {
     }
   }
 
-  // Phương thức lấy lịch sử giao dịch
+/*---------------------------------
+ Phương thức lấy lịch sử giao dịch
+-----------------------------------*/
   static Future<List<Map<String, dynamic>>> getWalletTransactions(
       String userId) async {
     try {
@@ -956,7 +1004,6 @@ class ApiService {
         final transactions =
             List<Map<String, dynamic>>.from(data['transactions']);
 
-        // Chuyển đổi amount từ String sang double
         for (var transaction in transactions) {
           if (transaction['amount'] is String) {
             transaction['amount'] = double.parse(transaction['amount']);
@@ -976,11 +1023,12 @@ class ApiService {
     }
   }
 
-  // Phương thức tạo yêu cầu nạp tiền
+/*---------------------------------
+Phương thức tạo yêu cầu nạp tiền
+-----------------------------------*/
   static Future<Map<String, dynamic>> createWalletTopUp(
       String userId, double amount, String method) async {
     try {
-      // Sửa đường dẫn API - không thêm /api/ vào nữa
       final url = '$baseUrl/wallet/topup';
       print('Creating top-up request with URL: $url');
 
@@ -1009,7 +1057,11 @@ class ApiService {
     }
   }
 
-  // Phương thức lấy danh sách yêu cầu nạp tiền (cho admin)
+/*---------------------------------
+Phương thức lấy danh sách yêu cầu
+ nạp tiền (cho admin)
+-----------------------------------*/
+
   static Future<List<Map<String, dynamic>>> getWalletTopUpRequests(
       String filter) async {
     try {
@@ -1028,7 +1080,6 @@ class ApiService {
         final data = json.decode(response.body);
         final topups = List<Map<String, dynamic>>.from(data['topups']);
 
-        // Chuyển đổi amount từ String sang double
         for (var topup in topups) {
           if (topup['amount'] is String) {
             topup['amount'] = double.parse(topup['amount']);
@@ -1048,11 +1099,14 @@ class ApiService {
     }
   }
 
-  // Phương thức xác nhận yêu cầu nạp tiền (cho admin)
+/*---------------------------------
+Phương thức xác nhận yêu cầu nạp\
+ tiền (cho admin)
+-----------------------------------*/
+
   static Future<Map<String, dynamic>> approveWalletTopUp(
       String requestId) async {
     try {
-      // Sửa đường dẫn API - loại bỏ /api/ trùng lặp
       final url = '$baseUrl/admin/wallet/topups/$requestId/approve';
       print('Approving top-up request with URL: $url');
 
@@ -1076,11 +1130,12 @@ class ApiService {
     }
   }
 
-  // Phương thức từ chối yêu cầu nạp tiền (cho admin)
+/*---------------------------------
+Từ chối yêu cầu nạp tiền (cho admin)
+-----------------------------------*/
   static Future<Map<String, dynamic>> rejectWalletTopUp(
       String requestId) async {
     try {
-      // Sửa đường dẫn API - loại bỏ /api/ trùng lặp
       final url = '$baseUrl/admin/wallet/topups/$requestId/reject';
       print('Rejecting top-up request with URL: $url');
 

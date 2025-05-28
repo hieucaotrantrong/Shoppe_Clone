@@ -120,7 +120,7 @@ class _ManageWalletTopUpsState extends State<ManageWalletTopUps> {
             ),
           ),
 
-          // List of top-up requests
+
           Expanded(
             child: _buildTopUpList(),
           ),

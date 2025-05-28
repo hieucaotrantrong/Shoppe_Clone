@@ -56,11 +56,11 @@ class _ProductsGridState extends State<ProductsGrid> {
   Widget build(BuildContext context) {
     // Lấy kích thước màn hình
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     // Tính toán số cột dựa trên kích thước màn hình
     int crossAxisCount = 2; // Mặc định là 2 cột
     double childAspectRatio = 0.7; // Tỷ lệ mặc định
-    
+
     // Điều chỉnh layout dựa trên kích thước màn hình
     if (screenWidth < 360) {
       crossAxisCount = 2;
@@ -75,7 +75,7 @@ class _ProductsGridState extends State<ProductsGrid> {
       crossAxisCount = 4;
       childAspectRatio = 0.9;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Column(
@@ -116,17 +116,17 @@ class _ProductsGridState extends State<ProductsGrid> {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Center(child: CircularProgressIndicator());
               }
-              
+
               if (snapshot.hasError) {
                 return Center(child: Text('Đã xảy ra lỗi: ${snapshot.error}'));
               }
-              
+
               final items = snapshot.data ?? [];
-              
+
               if (items.isEmpty) {
                 return Center(child: Text('Không có sản phẩm nào'));
               }
-              
+
               return GridView.builder(
                 padding: EdgeInsets.all(8),
                 shrinkWrap: true,
@@ -154,7 +154,8 @@ class _ProductsGridState extends State<ProductsGrid> {
                     discount: index % 3 == 0
                         ? 15
                         : (index % 2 == 0 ? 20 : 10), // Giảm giá ngẫu nhiên
-                    soldCount: (100 + index * 7).toString(), // Chuyển thành String
+                    soldCount:
+                        (100 + index * 7).toString(), // Chuyển thành String
                   );
                 },
               );
@@ -184,8 +185,9 @@ class ShopeeStyleProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final imageHeight = screenWidth * 0.25; // Chiều cao ảnh bằng 25% chiều rộng màn hình
-    
+    final imageHeight =
+        screenWidth * 0.25; // Chiều cao ảnh bằng 25% chiều rộng màn hình
+
     // Chuyển đổi giá từ String sang double nếu cần
     double originalPrice;
     if (product["Price"] is String) {
@@ -193,22 +195,22 @@ class ShopeeStyleProductCard extends StatelessWidget {
     } else {
       originalPrice = (product["Price"] ?? 0).toDouble();
     }
-    
+
     final discountedPrice = originalPrice * (1 - discount / 100);
-    
+
     // Sử dụng NumberFormat để định dạng giá tiền đúng cách
     final formattedOriginalPrice = NumberFormat.currency(
       locale: 'vi_VN',
       symbol: '₫',
       decimalDigits: 0,
     ).format(originalPrice);
-    
+
     final formattedDiscountedPrice = NumberFormat.currency(
       locale: 'vi_VN',
       symbol: '₫',
       decimalDigits: 0,
     ).format(discountedPrice);
-    
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -237,24 +239,28 @@ class ShopeeStyleProductCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(8)),
                   child: AspectRatio(
                     aspectRatio: 1, // Tỉ lệ 1:1 (hình vuông)
-                    child: product['ImagePath'] != null && product['ImagePath'].toString().isNotEmpty
-                      ? Image.network(
-                          product['ImagePath'],
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[300],
-                              child: Icon(Icons.image_not_supported, size: 40, color: Colors.grey[600]),
-                            );
-                          },
-                        )
-                      : Container(
-                          color: Colors.grey[300],
-                          child: Icon(Icons.image_not_supported, size: 40, color: Colors.grey[600]),
-                        ),
+                    child: product['ImagePath'] != null &&
+                            product['ImagePath'].toString().isNotEmpty
+                        ? Image.network(
+                            product['ImagePath'],
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey[300],
+                                child: Icon(Icons.image_not_supported,
+                                    size: 40, color: Colors.grey[600]),
+                              );
+                            },
+                          )
+                        : Container(
+                            color: Colors.grey[300],
+                            child: Icon(Icons.image_not_supported,
+                                size: 40, color: Colors.grey[600]),
+                          ),
                   ),
                 ),
                 if (discount > 0)
@@ -262,7 +268,8 @@ class ShopeeStyleProductCard extends StatelessWidget {
                     top: 0,
                     right: 0,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: const BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.only(
@@ -342,17 +349,3 @@ class ShopeeStyleProductCard extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -167,10 +167,10 @@ class _ProfileState extends State<Profile> {
 
     // Nếu người dùng xác nhận đăng xuất
     if (confirmLogout == true) {
-      // Xóa tất cả dữ liệu của người dùng từ SharedPreferences
+
       await SharedPreferenceHelper().clearUserData();
 
-      // Hiển thị thông báo đăng xuất thành công
+
       Fluttertoast.showToast(
           msg: "Đăng xuất thành công",
           toastLength: Toast.LENGTH_SHORT,
@@ -180,7 +180,7 @@ class _ProfileState extends State<Profile> {
           textColor: Colors.white,
           fontSize: 16.0);
 
-      // Điều hướng về màn hình đăng nhập
+
       Navigator.pushReplacement(
           context, MaterialPageRoute(builder: (context) => LogIn()));
     }

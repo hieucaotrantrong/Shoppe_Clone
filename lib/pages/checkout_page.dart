@@ -24,7 +24,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
   bool _isLoading = false;
   double _walletBalance = 0;
   String? _userId;
-  String _paymentMethod = 'wallet'; // Mặc định là thanh toán bằng ví
+  String _paymentMethod = 'wallet';
+
+  // Thêm controllers cho địa chỉ và số điện thoại
+  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -68,6 +79,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   void _placeOrder() async {
+    // Kiểm tra thông tin giao hàng
+    if (_addressController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Vui lòng nhập địa chỉ giao hàng')),
+      );
+      return;
+    }
+
+    if (_phoneController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Vui lòng nhập số điện thoại')),
+      );
+      return;
+    }
+
     if (widget.cartItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Giỏ hàng trống')),
@@ -111,12 +137,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
             '- ID: ${item['id']}, Name: ${item['name']}, Price: ${item['price']}, Quantity: ${item['quantity']}');
       }
 
-      // Gọi API tạo đơn hàng với phương thức thanh toán
+      // Gọi API tạo đơn hàng với phương thức thanh toán và thông tin giao hàng
       final result = await ApiService.createOrder(
         int.parse(_userId!),
         widget.totalAmount,
         widget.cartItems,
         paymentMethod: _paymentMethod,
+        address: _addressController.text.trim(),
+        phone: _phoneController.text.trim(),
       );
 
       if (result != null && result['status'] == 'success') {
@@ -265,6 +293,40 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           ],
                         ),
                       ),
+                    ),
+                    SizedBox(height: 24),
+
+                    // Thêm phần thông tin giao hàng
+                    Text(
+                      'Thông tin giao hàng',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 16),
+
+                    // Trường nhập địa chỉ
+                    TextField(
+                      controller: _addressController,
+                      decoration: InputDecoration(
+                        labelText: 'Địa chỉ giao hàng',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.location_on),
+                      ),
+                      maxLines: 2,
+                    ),
+                    SizedBox(height: 16),
+
+                    // Trường nhập số điện thoại
+                    TextField(
+                      controller: _phoneController,
+                      decoration: InputDecoration(
+                        labelText: 'Số điện thoại',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.phone),
+                      ),
+                      keyboardType: TextInputType.phone,
                     ),
                     SizedBox(height: 24),
 

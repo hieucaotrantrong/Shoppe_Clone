@@ -186,14 +186,14 @@ app.post('/api/users/login', async (req, res) => {
 
     const user = users[0];
 
-    // So sánh mật khẩu
+
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials' });
     }
 
-    // Trả về thông tin người dùng (không bao gồm mật khẩu)
+
     const userData = {
       id: user.id,
       name: user.name,
@@ -219,17 +219,19 @@ app.post('/api/users/register', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'All fields are required' });
     }
 
-    // Kiểm tra email đã tồn tại chưa
+
     const [existingUsers] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
 
     if (existingUsers.length > 0) {
       return res.status(409).json({ status: 'error', message: 'Email already exists' });
     }
 
-    // Mã hóa mật khẩu
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Thêm người dùng mới vào cơ sở dữ liệu (mặc định role là 'user')
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    /*---------------------------------
+    Thêm người dùng mặc didngj là user
+    -----------------------------------*/
+
     const [result] = await pool.query(
       'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
       [name, email, hashedPassword, 'user']
@@ -257,28 +259,29 @@ app.post('/api/users/register', async (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
   try {
-    const { user_id, total_amount, items, payment_method } = req.body;
+    const { user_id, total_amount, items, payment_method, shipping_address, phone } = req.body;
 
-    console.log('Received order request:', JSON.stringify({ user_id, total_amount, items, payment_method }, null, 2));
+    console.log('Received order request:', JSON.stringify({ user_id, total_amount, items, payment_method, shipping_address, phone }, null, 2));
 
     if (!user_id || !total_amount || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ status: 'error', message: 'Invalid order data' });
     }
 
-    // Bắt đầu transaction
+
     const connection = await pool.getConnection();
     await connection.beginTransaction();
 
     try {
-      // Nếu thanh toán bằng ví, kiểm tra số dư và trừ tiền
+
       if (payment_method === 'wallet') {
-        // Kiểm tra số dư ví
+
         const [walletRows] = await connection.query(
           'SELECT * FROM wallets WHERE user_id = ?',
           [user_id]
         );
-
-        // Nếu ví không tồn tại hoặc số dư không đủ
+        /*---------------------------------
+        Nếu ví không tồn tại hoặc số dư không đủ
+        -----------------------------------*/
         if (walletRows.length === 0) {
           await connection.rollback();
           return res.status(400).json({
@@ -298,13 +301,17 @@ app.post('/api/orders', async (req, res) => {
           });
         }
 
-        // Trừ tiền từ ví
+        /*---------------------------------
+        Trừ tiền từ ví
+        -----------------------------------*/
         await connection.query(
           'UPDATE wallets SET balance = balance - ? WHERE user_id = ?',
           [total_amount, user_id]
         );
+        /*---------------------------------
+                Tạo giao dịch ví
+        -----------------------------------*/
 
-        // Tạo giao dịch ví
         await connection.query(
           `INSERT INTO wallet_transactions 
            (user_id, amount, type, status, description, created_at) 
@@ -312,16 +319,19 @@ app.post('/api/orders', async (req, res) => {
           [user_id, total_amount]
         );
       }
-
-      // Tạo đơn hàng
+      /*---------------------------------
+         Tạo đơn hàng với thông tin giao hàng
+        -----------------------------------*/
       const [orderResult] = await connection.query(
-        'INSERT INTO orders (user_id, total_amount, status, payment_method) VALUES (?, ?, ?, ?)',
-        [user_id, total_amount, 'pending', payment_method || 'cod']
+        'INSERT INTO orders (user_id, total_amount, status, payment_method, shipping_address, phone) VALUES (?, ?, ?, ?, ?, ?)',
+        [user_id, total_amount, 'pending', payment_method || 'cod', shipping_address, phone]
       );
 
       const orderId = orderResult.insertId;
+      /*---------------------------------
+       Thêm các sản phẩm vào đơn hàng
+      -----------------------------------*/
 
-      // Thêm các sản phẩm vào đơn hàng
       for (const item of items) {
         await connection.query(
           'INSERT INTO order_items (order_id, product_id, name, price, quantity) VALUES (?, ?, ?, ?, ?)',
@@ -329,10 +339,11 @@ app.post('/api/orders', async (req, res) => {
         );
       }
 
-      // Commit transaction
-      await connection.commit();
 
-      // Trả về kết quả thành công
+      await connection.commit();
+      /*---------------------------------
+      Trả về kết quả thành công
+      ----------------------------------*/
       return res.status(201).json({
         status: 'success',
         message: 'Order created successfully',
@@ -340,7 +351,7 @@ app.post('/api/orders', async (req, res) => {
         payment_method: payment_method || 'cod'
       });
     } catch (error) {
-      // Rollback nếu có lỗi
+
       await connection.rollback();
       throw error;
     } finally {
@@ -368,9 +379,9 @@ app.put('/api/users/:id/password', async (req, res) => {
       });
     }
     /*---------------------------------
-       - 
+    Lấy thông tin người dùng
     -----------------------------------*/
-    // Lấy thông tin người dùng
+
     const [users] = await pool.query(
       'SELECT * FROM users WHERE id = ?',
       [userId]
@@ -385,9 +396,9 @@ app.put('/api/users/:id/password', async (req, res) => {
 
     const user = users[0];
     /*---------------------------------
-       - 
+     Kiểm tra mật khẩu hiện tại
     -----------------------------------*/
-    // Kiểm tra mật khẩu hiện tại
+
     const passwordMatch = await bcrypt.compare(currentPassword, user.password);
 
     if (!passwordMatch) {
@@ -398,13 +409,13 @@ app.put('/api/users/:id/password', async (req, res) => {
     }
     /*---------------------------------
        - 
-       -----------------------------------*/
-    // Mã hóa mật khẩu mới
+    -----------------------------------*/
+
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
     /*---------------------------------
-    - 
+    - Cập nhật mật khẩu
     -----------------------------------*/
-    // Cập nhật mật khẩu
+
     await pool.query(
       'UPDATE users SET password = ? WHERE id = ?',
       [hashedPassword, userId]
@@ -452,14 +463,14 @@ app.get('/api/orders', async (req, res) => {
 
     const [orders] = await pool.query(query, params);
 
-    // Lấy chi tiết sản phẩm cho mỗi đơn hàng
+
     const ordersWithItems = await Promise.all(orders.map(async (order) => {
       const [items] = await pool.query(
         'SELECT oi.*, p.name as product_name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?',
         [order.id]
       );
 
-      // Sử dụng tên sản phẩm từ order_items hoặc từ products
+
       const itemsWithNames = items.map(item => {
         return {
           ...item,
@@ -495,7 +506,7 @@ app.post('/api/orders/:id/status', async (req, res) => {
 
     console.log(`Updating order ${orderId} to status: ${status}`);
 
-    // Lấy thông tin đơn hàng
+
     const [orderRows] = await pool.query(
       'SELECT o.*, u.name as user_name FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.id = ?',
       [orderId]
@@ -507,13 +518,17 @@ app.post('/api/orders/:id/status', async (req, res) => {
 
     const order = orderRows[0];
 
-    // Lấy thông tin sản phẩm trong đơn hàng
+    /*----------------------------------------
+    Lấy thông tin sản phẩm trong đơn hàng
+    -----------------------------------------*/
     const [orderItems] = await pool.query(
       'SELECT oi.*, p.name as product_name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?',
       [orderId]
     );
+    /*------------------------------------
+    Tạo mô tả sản phẩm cho thông báo
+    --------------------------------------*/
 
-    // Tạo mô tả sản phẩm cho thông báo
     let productText = 'Đơn hàng của bạn';
     if (orderItems.length > 0) {
       const firstItem = orderItems[0];
@@ -526,28 +541,36 @@ app.post('/api/orders/:id/status', async (req, res) => {
       }
     }
 
-    // Bắt đầu transaction
+
     const connection = await pool.getConnection();
     await connection.beginTransaction();
 
     try {
-      // Nếu trạng thái là 'returned' (đã chấp nhận trả hàng), thực hiện hoàn tiền
+
       if (status === 'returned') {
-        // Kiểm tra phương thức thanh toán của đơn hàng
+        /*-----------------------------------
+        Kiểm tra phương thức thanh toán của 
+        đơn hàng
+        ------------------------------------*/
+
         if (order.payment_method === 'wallet') {
-          // Lấy thông tin người dùng
+
           const userId = order.user_id;
           const totalAmount = parseFloat(order.total_amount);
 
           console.log(`Refunding ${totalAmount} to user ${userId}'s wallet`);
+          /*-----------------------------------
+          Cập nhật số dư ví của người dùng
+          -------------------------------------*/
 
-          // Cập nhật số dư ví của người dùng
           await connection.query(
             'UPDATE wallets SET balance = balance + ? WHERE user_id = ?',
             [totalAmount, userId]
           );
+          /*------------------------------------
+          Tạo loại giao dịch ví với loaik payment
+          -------------------------------------*/
 
-          // Tạo giao dịch ví với loại 'payment'
           await connection.query(
             `INSERT INTO wallet_transactions 
              (user_id, amount, type, status, description, reference_id, created_at) 
@@ -560,8 +583,10 @@ app.post('/api/orders/:id/status', async (req, res) => {
           console.log(`Order ${orderId} used payment method ${order.payment_method}, no wallet refund needed`);
         }
       }
+      /*--------------------------------------------
+       Cập nhật trạng thái và lý do trả hàng nếu có
+      ----------------------------------------------*/
 
-      // Cập nhật trạng thái và lý do trả hàng nếu có
       if ((status === 'returning' || status === 'returned') && reason) {
         await connection.query(
           'UPDATE orders SET status = ?, return_reason = ? WHERE id = ?',
@@ -573,8 +598,11 @@ app.post('/api/orders/:id/status', async (req, res) => {
           [status, orderId]
         );
       }
+      /*---------------------------------
+      Cập nhật thời gian giao hàng 
+      nếu trạng thái là delivered
+      -----------------------------------*/
 
-      // Cập nhật thời gian giao hàng nếu trạng thái là delivered
       if (status === 'delivered') {
         await connection.query(
           'UPDATE orders SET delivered_at = NOW() WHERE id = ?',
@@ -582,10 +610,12 @@ app.post('/api/orders/:id/status', async (req, res) => {
         );
       }
 
-      // Commit transaction
       await connection.commit();
+      /*-------------------------------------------
+      Tạo thông báo cho người dùng về việc cập nhật
+      trạng thái đơn hàng
+      ---------------------------------------------*/
 
-      // Tạo thông báo cho người dùng về việc cập nhật trạng thái đơn hàng
       let title, message;
       switch (status) {
         case 'processing':
@@ -615,7 +645,10 @@ app.post('/api/orders/:id/status', async (req, res) => {
           break;
       }
 
-      // Tạo thông báo nếu có title và message
+      /*-------------------------------
+      Create notification if title and 
+      message available  
+      ---------------------------------*/
       if (title && message) {
         await pool.query(
           'INSERT INTO notifications (user_id, title, message, created_at) VALUES (?, ?, ?, NOW())',
@@ -638,10 +671,12 @@ app.post('/api/orders/:id/status', async (req, res) => {
     console.error('Error updating order status:', error);
     res.status(500).json({ status: 'error', message: error.message });
   }
-});/*---------------------------------
-- 
+});
+/*---------------------------------
+- Lấy tất cả sản phẩm với tùy chọn
+ lọc theo danh mục và tìm kiếm
 -----------------------------------*/
-// Lấy tất cả sản phẩm với tùy chọn lọc theo danh mục và tìm kiếm
+
 app.get('/api/products', async (req, res) => {
   try {
     const { category, search } = req.query;
@@ -656,8 +691,10 @@ app.get('/api/products', async (req, res) => {
       query += ' AND category = ?';
       params.push(category);
     }
+    /*---------------------------------
+     Tìm kiếm theo tên sản phẩm nếu được cung cấp
+    -----------------------------------*/
 
-    // Tìm kiếm theo tên sản phẩm nếu được cung cấp
     if (search && search.trim() !== '') {
       query += ' AND name LIKE ?';
       params.push(`%${search.trim()}%`);
@@ -828,17 +865,17 @@ app.post('/api/users', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'All fields are required' });
     }
 
-    // Kiểm tra email đã tồn tại chưa
+
     const [existingUsers] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
 
     if (existingUsers.length > 0) {
       return res.status(409).json({ status: 'error', message: 'Email already exists' });
     }
 
-    // Mã hóa mật khẩu
+
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Thêm người dùng mới vào cơ sở dữ liệu
+
     const [result] = await pool.query(
       'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
       [name, email, hashedPassword, role]
@@ -871,14 +908,16 @@ app.put('/api/users/:id', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Name and email are required' });
     }
 
-    // Kiểm tra người dùng tồn tại
+    /*---------------------------------
+    Kiểm tra người dùng tồn tại 
+    -----------------------------------*/
     const [existingUsers] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
 
     if (existingUsers.length === 0) {
       return res.status(404).json({ status: 'error', message: 'User not found' });
     }
 
-    // Kiểm tra email đã tồn tại chưa (nếu thay đổi email)
+
     if (email !== existingUsers[0].email) {
       const [emailCheck] = await pool.query('SELECT * FROM users WHERE email = ? AND id != ?', [email, userId]);
 
@@ -890,20 +929,20 @@ app.put('/api/users/:id', async (req, res) => {
     let query = 'UPDATE users SET name = ?, email = ? WHERE id = ?';
     let params = [name, email, userId];
 
-    // Nếu có mật khẩu mới, mã hóa và cập nhật
+
     if (password) {
       const hashedPassword = await bcrypt.hash(password, saltRounds);
       query = 'UPDATE users SET name = ?, email = ?, password = ? WHERE id = ?';
       params = [name, email, hashedPassword, userId];
     }
 
-    // Nếu có role (cho admin), cập nhật role
+
     if (role) {
       query = query.replace('WHERE', ', role = ? WHERE');
       params.splice(params.length - 1, 0, role);
     }
 
-    // Nếu có ảnh đại diện mới, cập nhật
+
     if (profile_image) {
       query = query.replace('WHERE', ', profile_image = ? WHERE');
       params.splice(params.length - 1, 0, profile_image);
@@ -938,14 +977,14 @@ app.delete('/api/users/:id', async (req, res) => {
   try {
     const userId = req.params.id;
 
-    // Kiểm tra người dùng tồn tại
+
     const [existingUsers] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
 
     if (existingUsers.length === 0) {
       return res.status(404).json({ status: 'error', message: 'User not found' });
     }
 
-    // Kiểm tra xem có phải admin cuối cùng không
+
     if (existingUsers[0].role === 'admin') {
       const [adminCount] = await pool.query('SELECT COUNT(*) as count FROM users WHERE role = "admin"');
 
@@ -957,7 +996,7 @@ app.delete('/api/users/:id', async (req, res) => {
       }
     }
 
-    // Xóa người dùng
+
     const [result] = await pool.query('DELETE FROM users WHERE id = ?', [userId]);
 
     if (result.affectedRows === 0) {
@@ -976,14 +1015,14 @@ app.delete('/api/users/:id', async (req, res) => {
 /*---------------------------------
 - Get all orders by user (user)
 -----------------------------------*/
-// API lấy danh sách đơn hàng của người dùng
+
 app.get('/users/:id/orders', async (req, res) => {
   try {
     const userId = req.params.id;
 
     console.log(`Getting orders for user ${userId}`);
 
-    // Lấy danh sách đơn hàng
+
     const [orders] = await pool.query(
       `SELECT * FROM orders 
        WHERE user_id = ? 
@@ -1005,14 +1044,15 @@ app.get('/users/:id/orders', async (req, res) => {
     });
   }
 });
+/*---------------------------------
+ API để lấy các mục trong đơn hàng
+-----------------------------------*/
 
-// API để lấy các mục trong đơn hàng
 app.get('/orders/:id/items', async (req, res) => {
   try {
     const orderId = req.params.id;
     console.log(`Fetching items for order #${orderId}`);
 
-    // Lấy thông tin chi tiết sản phẩm trong đơn hàng
     const [items] = await pool.query(
       `SELECT oi.*, p.image_path, p.name as product_name, p.description, p.price as product_price
        FROM order_items oi
@@ -1023,25 +1063,21 @@ app.get('/orders/:id/items', async (req, res) => {
 
     console.log(`Found ${items.length} items for order #${orderId}`);
 
-    // Xử lý và trả về thông tin sản phẩm
+
     const processedItems = items.map(item => {
-      // Chuyển đổi dữ liệu từ MySQL sang JSON
+
       const processedItem = { ...item };
 
-      // Xử lý đường dẫn ảnh
+
       if (processedItem.image_path) {
-        // Đảm bảo đường dẫn ảnh không bắt đầu bằng '/'
+
         processedItem.image_path = processedItem.image_path.startsWith('/')
           ? processedItem.image_path.substring(1)
           : processedItem.image_path;
 
-        // Thêm trường ImagePath để tương thích với frontend
+
         processedItem.ImagePath = processedItem.image_path;
       }
-
-      // Log thông tin sản phẩm để debug
-      console.log(`Product in order #${orderId}: ${processedItem.product_name || processedItem.name}, image: ${processedItem.image_path || 'none'}`);
-
       return processedItem;
     });
 
@@ -1070,7 +1106,7 @@ app.put('/api/users/profile/:id', async (req, res) => {
       });
     }
 
-    // Kiểm tra người dùng tồn tại
+
     const [existingUsers] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
 
     if (existingUsers.length === 0) {
@@ -1080,7 +1116,7 @@ app.put('/api/users/profile/:id', async (req, res) => {
       });
     }
 
-    // Kiểm tra email đã tồn tại chưa (nếu thay đổi email)
+
     if (email !== existingUsers[0].email) {
       const [emailCheck] = await pool.query('SELECT * FROM users WHERE email = ? AND id != ?', [email, userId]);
 
@@ -1095,14 +1131,14 @@ app.put('/api/users/profile/:id', async (req, res) => {
     let query = 'UPDATE users SET name = ?, email = ? WHERE id = ?';
     let params = [name, email, userId];
 
-    // Nếu có mật khẩu mới, mã hóa và cập nhật
+
     if (password) {
       const hashedPassword = await bcrypt.hash(password, saltRounds);
       query = 'UPDATE users SET name = ?, email = ?, password = ? WHERE id = ?';
       params = [name, email, hashedPassword, userId];
     }
 
-    // Nếu có ảnh đại diện mới, cập nhật
+
     if (profile_image) {
       query = query.replace('WHERE', ', profile_image = ? WHERE');
       params.splice(params.length - 1, 0, profile_image);
@@ -1135,8 +1171,10 @@ app.put('/api/users/profile/:id', async (req, res) => {
     });
   }
 });
+/*---------------------------------
+  Tạo thư mục uploads nếu chưa tồn tại
+-----------------------------------*/
 
-// Tạo thư mục uploads nếu chưa tồn tại
 const uploadDir = path.join(__dirname, 'uploads');
 const profileImagesDir = path.join(uploadDir, 'profile_images');
 
@@ -1148,7 +1186,6 @@ if (!fs.existsSync(profileImagesDir)) {
   fs.mkdirSync(profileImagesDir);
 }
 
-// Cấu hình multer để lưu file upload
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, profileImagesDir);
@@ -1162,9 +1199,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // Giới hạn 5MB
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: function (req, file, cb) {
-    // Chỉ chấp nhận file ảnh
+
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -1173,7 +1210,7 @@ const upload = multer({
   }
 });
 
-// Phục vụ các file tĩnh từ thư mục uploads
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 /*---------------------------------------- 
 ------------------------------------------*/
@@ -1195,7 +1232,6 @@ app.post('/api/upload-profile-image', upload.single('image'), async (req, res) =
       });
     }
 
-    // Kiểm tra người dùng tồn tại
     const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
     if (users.length === 0) {
       return res.status(404).json({
@@ -1204,16 +1240,15 @@ app.post('/api/upload-profile-image', upload.single('image'), async (req, res) =
       });
     }
 
-    // Đường dẫn tương đối đến file ảnh
+
     const relativePath = '/uploads/profile_images/' + req.file.filename;
 
-    // Cập nhật đường dẫn ảnh đại diện trong cơ sở dữ liệu
+
     await pool.query(
       'UPDATE users SET profile_image = ? WHERE id = ?',
       [relativePath, userId]
     );
 
-    // Trả về đường dẫn đầy đủ đến ảnh
     const fullUrl = req.protocol + '://' + req.get('host') + relativePath;
 
     res.json({
@@ -1231,19 +1266,19 @@ app.post('/api/upload-profile-image', upload.single('image'), async (req, res) =
 });
 
 /*---------------------------------
-- Api notification
+- API lấy thông báo của người dùng
 -----------------------------------*/
-// API lấy thông báo của người dùng
+
 app.get('/api/users/:userId/notifications', async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    // Kiểm tra userId
+
     if (!userId) {
       return res.status(400).json({ status: 'error', message: 'User ID is required' });
     }
 
-    // Lấy thông báo từ database
+
     const [notifications] = await pool.query(
       `SELECT id, user_id, title, message, is_read, created_at 
        FROM notifications 
@@ -1264,13 +1299,13 @@ app.get('/api/users/:userId/notifications', async (req, res) => {
   }
 });
 /*-------------------------------------
+API đánh dấu thông báo đã đọc
 --------------------------------------*/
-// API đánh dấu thông báo đã đọc
 app.put('/api/notifications/:id/read', async (req, res) => {
   try {
     const notificationId = req.params.id;
 
-    // Cập nhật trạng thái đã đọc
+
     await pool.query(
       'UPDATE notifications SET is_read = 1 WHERE id = ?',
       [notificationId]
@@ -1285,13 +1320,15 @@ app.put('/api/notifications/:id/read', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
+/*---------------------------------
+ API đánh dấu tất cả thông báo của
+  người dùng đã đọc
+-----------------------------------*/
 
-// API đánh dấu tất cả thông báo của người dùng đã đọc
 app.put('/api/users/:userId/notifications/read-all', async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    // Cập nhật tất cả thông báo của người dùng thành đã đọc
     await pool.query(
       'UPDATE notifications SET is_read = 1 WHERE user_id = ?',
       [userId]
@@ -1316,7 +1353,7 @@ app.get('/api/chat/messages/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    // Thêm log để debug
+
     console.log(`Getting messages for user ${userId}`);
 
     const [messages] = await pool.query(
@@ -1328,7 +1365,7 @@ app.get('/api/chat/messages/:userId', async (req, res) => {
 
     console.log(`Retrieved ${messages.length} messages for user ${userId}`);
 
-    // Thêm header để tránh cache
+
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -1342,8 +1379,10 @@ app.get('/api/chat/messages/:userId', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
+/*---------------------------------
+ API gửi tin nhắn chat
+    -----------------------------------*/
 
-// API gửi tin nhắn chat
 app.post('/api/chat/messages', async (req, res) => {
   console.log('Received chat message request:', req.body);
   try {
@@ -1375,8 +1414,10 @@ app.post('/api/chat/messages', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
-
-// Lấy danh sách người dùng có tin nhắn (cho admin)
+/*---------------------------------
+ Lấy danh sách người dùng có tin 
+ nhắn (cho admin)
+-----------------------------------*/
 app.get('/api/chat/users', async (req, res) => {
   try {
     const [users] = await pool.query(`
@@ -1403,8 +1444,10 @@ app.get('/api/chat/users', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
+/*---------------------------------
+Đánh dấu tin nhắn đã đọc
+ -----------------------------------*/
 
-// Đánh dấu tin nhắn đã đọc
 app.post('/api/chat/mark-read', async (req, res) => {
   try {
     const { userId, sender } = req.body;
@@ -1416,7 +1459,7 @@ app.post('/api/chat/mark-read', async (req, res) => {
       [userId, sender]
     );
 
-    // Thêm header để tránh cache
+
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -1431,17 +1474,15 @@ app.post('/api/chat/mark-read', async (req, res) => {
   }
 });
 
-// API health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running' });
-});
 
-// API để lấy chi tiết đơn hàng
+/*---------------------------------
+ API để lấy chi tiết đơn hàng 
+-----------------------------------*/
 app.get('/api/orders/:id/details', async (req, res) => {
   try {
     const orderId = req.params.id;
 
-    // Lấy thông tin đơn hàng
+
     const [orders] = await pool.query(
       'SELECT * FROM orders WHERE id = ?',
       [orderId]
@@ -1454,7 +1495,7 @@ app.get('/api/orders/:id/details', async (req, res) => {
       });
     }
 
-    // Lấy các mục trong đơn hàng với thông tin sản phẩm
+
     const [items] = await pool.query(
       `SELECT oi.*, p.name, p.image_url 
        FROM order_items oi
@@ -1487,8 +1528,9 @@ app.get('/api/orders/:id/items', async (req, res) => {
   try {
     const orderId = req.params.id;
     /*---------------------------------------
+     Lấy các mục trong đơn hàng
     -----------------------------------------*/
-    // Lấy các mục trong đơn hàng
+
     const [items] = await pool.query(
       `SELECT oi.*, p.image_path, p.name as product_name
        FROM order_items oi
@@ -1496,9 +1538,9 @@ app.get('/api/orders/:id/items', async (req, res) => {
        WHERE oi.order_id = ?`,
       [orderId]
     );
-    // Đảm bảo đường dẫn ảnh đầy đủ
+
     const itemsWithFullImagePath = items.map(item => {
-      // Nếu có image_path, đảm bảo nó không bắt đầu bằng '/'
+
       if (item.image_path) {
         item.image_path = item.image_path.startsWith('/')
           ? item.image_path.substring(1)
@@ -1519,14 +1561,16 @@ app.get('/api/orders/:id/items', async (req, res) => {
     });
   }
 });
+/*---------------------------------
+API lấy lịch sử giao dịch
+-----------------------------------*/
 
-// API lấy lịch sử giao dịch
 app.get('/api/wallet/transactions/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
     console.log(`Getting wallet transactions for user ${userId}`);
 
-    // Lấy lịch sử giao dịch
+
     const [transactions] = await pool.query(
       `SELECT * FROM wallet_transactions 
        WHERE user_id = ? 
@@ -1534,7 +1578,7 @@ app.get('/api/wallet/transactions/:userId', async (req, res) => {
       [userId]
     );
 
-    // Chuyển đổi amount từ String sang Number
+
     const formattedTransactions = transactions.map(transaction => {
       return {
         ...transaction,
@@ -1549,8 +1593,10 @@ app.get('/api/wallet/transactions/:userId', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+/*---------------------------------
+  API tạo yêu cầu nạp tiền
+-----------------------------------*/
 
-// API tạo yêu cầu nạp tiền
 app.post('/api/wallet/topup', async (req, res) => {
   try {
     console.log('Received top-up request:', req.body);
@@ -1561,7 +1607,7 @@ app.post('/api/wallet/topup', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Missing required fields' });
     }
 
-    // Tạo yêu cầu nạp tiền với trạng thái 'pending'
+
     const [result] = await pool.query(
       `INSERT INTO wallet_topups 
        (user_id, amount, payment_method, status, created_at) 
@@ -1571,7 +1617,7 @@ app.post('/api/wallet/topup', async (req, res) => {
 
     console.log(`Created top-up request with ID ${result.insertId}`);
 
-    // Tạo giao dịch ví với trạng thái 'pending'
+
     await pool.query(
       `INSERT INTO wallet_transactions 
        (user_id, amount, type, status, reference_id, created_at) 
@@ -1589,8 +1635,11 @@ app.post('/api/wallet/topup', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
+/*---------------------------------
+  API lấy danh sách yêu cầu nạp tiền
+  (cho admin)
+-----------------------------------*/
 
-// API lấy danh sách yêu cầu nạp tiền (cho admin)
 app.get('/api/admin/wallet/topups', async (req, res) => {
   try {
     const filter = req.query.filter || 'all';
@@ -1602,7 +1651,7 @@ app.get('/api/admin/wallet/topups', async (req, res) => {
       LEFT JOIN users u ON t.user_id = u.id
     `;
 
-    // Lọc theo trạng thái
+
     if (filter !== 'all') {
       query += ` WHERE t.status = '${filter}'`;
     }
@@ -1612,7 +1661,7 @@ app.get('/api/admin/wallet/topups', async (req, res) => {
     const [topups] = await pool.query(query);
     console.log(`Found ${topups.length} top-up requests with filter: ${filter}`);
 
-    // Chuyển đổi amount từ String sang Number
+
     const formattedTopups = topups.map(topup => {
       return {
         ...topup,
@@ -1626,14 +1675,16 @@ app.get('/api/admin/wallet/topups', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+/*---------------------------------
+API xác nhận yêu cầu nạp tiền (cho admin) 
+-----------------------------------*/
 
-// API xác nhận yêu cầu nạp tiền (cho admin)
 app.post('/api/admin/wallet/topups/:id/approve', async (req, res) => {
   try {
     const topupId = req.params.id;
     console.log(`Approving top-up request with ID: ${topupId}`);
 
-    // Lấy thông tin yêu cầu nạp tiền
+
     const [topupRows] = await pool.query(
       'SELECT * FROM wallet_topups WHERE id = ?',
       [topupId]
@@ -1645,31 +1696,31 @@ app.post('/api/admin/wallet/topups/:id/approve', async (req, res) => {
 
     const topup = topupRows[0];
 
-    // Kiểm tra xem yêu cầu đã được xử lý chưa
+
     if (topup.status !== 'pending') {
       return res.status(400).json({
         error: 'This top-up request has already been processed'
       });
     }
 
-    // Bắt đầu transaction
+
     const connection = await pool.getConnection();
     await connection.beginTransaction();
 
     try {
-      // Cập nhật trạng thái yêu cầu nạp tiền
+
       await connection.query(
         'UPDATE wallet_topups SET status = "completed", updated_at = NOW() WHERE id = ?',
         [topupId]
       );
 
-      // Cập nhật trạng thái giao dịch ví
+
       await connection.query(
         'UPDATE wallet_transactions SET status = "completed", updated_at = NOW() WHERE reference_id = ? AND type = "top_up"',
         [topupId]
       );
 
-      // Cập nhật số dư ví
+
       await connection.query(
         'UPDATE wallets SET balance = balance + ? WHERE user_id = ?',
         [topup.amount, topup.user_id]
@@ -1693,14 +1744,15 @@ app.post('/api/admin/wallet/topups/:id/approve', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+/*---------------------------------
+API từ chối yêu cầu nạp tiền (cho admin)
+-----------------------------------*/
 
-// API từ chối yêu cầu nạp tiền (cho admin)
 app.post('/api/admin/wallet/topups/:id/reject', async (req, res) => {
   try {
     const topupId = req.params.id;
     console.log(`Rejecting top-up request with ID: ${topupId}`);
 
-    // Lấy thông tin yêu cầu nạp tiền
     const [topupRows] = await pool.query(
       'SELECT * FROM wallet_topups WHERE id = ?',
       [topupId]
@@ -1712,25 +1764,28 @@ app.post('/api/admin/wallet/topups/:id/reject', async (req, res) => {
 
     const topup = topupRows[0];
 
-    // Kiểm tra xem yêu cầu đã được xử lý chưa
+
     if (topup.status !== 'pending') {
       return res.status(400).json({
         error: 'This top-up request has already been processed'
       });
     }
 
-    // Bắt đầu transaction
+
     const connection = await pool.getConnection();
     await connection.beginTransaction();
 
     try {
-      // Cập nhật trạng thái yêu cầu nạp tiền
+      /*---------------------------------
+      Cập nhật trạng thái yêu cầu nạp tiền
+    -----------------------------------*/
+
       await connection.query(
         'UPDATE wallet_topups SET status = "rejected", updated_at = NOW() WHERE id = ?',
         [topupId]
       );
 
-      // Cập nhật trạng thái giao dịch ví
+
       await connection.query(
         'UPDATE wallet_transactions SET status = "rejected", updated_at = NOW() WHERE reference_id = ? AND type = "top_up"',
         [topupId]
@@ -1755,19 +1810,21 @@ app.post('/api/admin/wallet/topups/:id/reject', async (req, res) => {
   }
 });
 
-// Kiểm tra xem route này đã được định nghĩa chưa
+/*---------------------------------
+API lấy số dư ví của người dùng
+-----------------------------------*/
 app.get('/api/wallet/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
     console.log(`Getting wallet balance for user ${userId}`);
 
-    // Kiểm tra xem ví đã tồn tại chưa
+
     const [walletRows] = await pool.query(
       'SELECT * FROM wallets WHERE user_id = ?',
       [userId]
     );
 
-    // Nếu ví chưa tồn tại, tạo ví mới với số dư 0
+
     if (walletRows.length === 0) {
       console.log(`Creating new wallet for user ${userId}`);
       await pool.query(
@@ -1779,20 +1836,22 @@ app.get('/api/wallet/:userId', async (req, res) => {
     }
 
     console.log(`Wallet found for user ${userId}, balance: ${walletRows[0].balance}`);
-    // Trả về số dư ví dưới dạng số, không phải chuỗi
+
     return res.json({ balance: parseFloat(walletRows[0].balance) });
   } catch (error) {
     console.error('Error getting wallet balance:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+/*---------------------------------
+  Khi lấy danh sách sản phẩm
+----------------------------------*/
 
-// Khi lấy danh sách sản phẩm
 app.get('/api/products', async (req, res) => {
   try {
     const [products] = await pool.query('SELECT * FROM products');
 
-    // Đảm bảo giá được trả về dưới dạng số
+
     const formattedProducts = products.map(product => {
       return {
         ...product,
@@ -1809,3 +1868,4 @@ app.get('/api/products', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
+

@@ -6,6 +6,7 @@ import 'package:food_app/services/shared_pref.dart';
 import 'package:food_app/pages/bottomnav.dart';
 import 'package:food_app/pages/checkout_page.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class Order extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -46,47 +47,75 @@ class _OrderState extends State<Order> {
                   itemCount: widget.cartItems.length,
                   itemBuilder: (context, index) {
                     final item = widget.cartItems[index];
-                    
-                    // Chuyển đổi giá từ String sang double nếu cần
+
+                    // 
                     double price = 0;
                     if (item['price'] is String) {
                       price = double.tryParse(item['price']) ?? 0;
                     } else {
                       price = (item['price'] ?? 0).toDouble();
                     }
-                    
-                    // Định dạng giá tiền
+
+        
                     String formattedPrice = NumberFormat.currency(
                       locale: 'vi_VN',
                       symbol: '₫',
                       decimalDigits: 0,
                     ).format(price);
-                    
+
                     return ListTile(
-                      leading: Image.network(
-                        item['image'] ??
-                            'https://via.placeholder.com/100',
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Image.asset(
-                            'images/placeholder.png',
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                          );
-                        },
-                      ),
-                      title: Text(item['name'] ?? 'Unknown Product'),
-                      subtitle: Text('Số lượng: ${item['quantity']}'),
-                      trailing: Text(
-                        formattedPrice,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: SizedBox(
+                          width: 60,
+                          height: 60,
+                          child: item['image'] != null &&
+                                  item['image'].toString().isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: item['image'],
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Container(
+                                    color: Colors.grey[200],
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      Container(
+                                    color: Colors.grey[200],
+                                    child: Icon(Icons.image_not_supported,
+                                        color: Colors.grey),
+                                  ),
+                                )
+                              : Container(
+                                  color: Colors.grey[200],
+                                  child: Icon(Icons.image_not_supported,
+                                      color: Colors.grey),
+                                ),
                         ),
                       ),
+                      title: Text(item['name'] ?? 'Unknown Product'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Số lượng: ${item['quantity']}'),
+                          SizedBox(height: 4),
+                          Text(
+                            formattedPrice,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      isThreeLine: true,
                     );
                   },
                 ),
@@ -188,10 +217,3 @@ class _OrderState extends State<Order> {
     );
   }
 }
-
-
-
-
-
-
-

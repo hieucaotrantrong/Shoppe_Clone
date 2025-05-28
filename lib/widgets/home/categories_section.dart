@@ -43,49 +43,49 @@ class CategoriesSection extends StatelessWidget {
             child: Row(
               children: [
                 _buildCategoryButton(
-                  'images/banner.png',
+                  'images/all.jpg',
                   selectedCategory == "All",
                   'Tất cả',
                   onAllTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/banner.png',
+                  'images/icon1.png',
                   selectedCategory == "Clothing",
                   'Quần áo',
                   onClothingTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/banner.png',
+                  'images/short.jpg',
                   selectedCategory == "Shoes",
                   'Giày dép',
                   onShoesTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/banner.png',
+                  'images/nhan.jpg',
                   selectedCategory == "Accessories",
                   'Phụ kiện',
                   onAccessoriesTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/banner.png',
+                  'images/version.jpg',
                   selectedCategory == "Electronics",
                   'Điện tử',
                   onElectronicsTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/banner.png',
+                  'images/version2.jpg',
                   selectedCategory == "Sports",
                   'Thể thao',
                   onSportsTap,
                 ),
                 const SizedBox(width: 15),
                 _buildCategoryButton(
-                  'images/banner.png',
+                  'images/icon2.png',
                   selectedCategory == "Beauty",
                   'Làm đẹp',
                   onBeautyTap,
@@ -107,7 +107,9 @@ class CategoriesSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: isSelected ? Colors.black87 : Colors.white,
+              color: isSelected
+                  ? const Color.fromARGB(221, 236, 82, 82)
+                  : Colors.white,
               borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(

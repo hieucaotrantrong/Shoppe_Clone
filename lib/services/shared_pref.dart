@@ -8,19 +8,20 @@ class SharedPreferenceHelper {
   static const String userProfileKey = 'userProfile';
 
   // Lưu thông tin người dùng
-  Future<bool> saveUserData(String userId, String userName, String userEmail, String role) async {
+  Future<bool> saveUserData(
+      String userId, String userName, String userEmail, String role) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString(userIdKey, userId);
     await prefs.setString(userNameKey, userName);
     await prefs.setString(userEmailKey, userEmail);
     await prefs.setString(userRoleKey, role);
-    
+
     print('Saved user data to SharedPreferences:');
     print('- userId: $userId');
     print('- userName: $userName');
     print('- userEmail: $userEmail');
     print('- userRole: $role');
-    
+
     return true;
   }
 
@@ -85,5 +86,3 @@ class SharedPreferenceHelper {
     return prefs.getString(userProfileKey);
   }
 }
-
-
