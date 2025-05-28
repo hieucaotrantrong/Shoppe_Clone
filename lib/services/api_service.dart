@@ -31,12 +31,9 @@ class ApiService {
       if (response.statusCode == 201) {
         return json.decode(response.body);
       } else {
-        print('Registration failed: ${response.statusCode}');
-        print('Response: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error during registration: $e');
       return null;
     }
   }
@@ -62,12 +59,9 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('Login failed: ${response.statusCode}');
-        print('Response: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error during login: $e');
       return null;
     }
   }
@@ -83,12 +77,9 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('Failed to load products: ${response.statusCode}');
-        print('Response: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error getting products: $e');
       return null;
     }
   }
@@ -105,12 +96,9 @@ class ApiService {
         final data = json.decode(response.body);
         return List<Map<String, dynamic>>.from(data['data']);
       } else {
-        print('Failed to load products: ${response.statusCode}');
-        print('Response: ${response.body}');
         return [];
       }
     } catch (e) {
-      print('Error getting products: $e');
       return [];
     }
   }
@@ -144,12 +132,9 @@ Tạo đơn hàng mới
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
       } else {
-        print(
-            'Error creating order: ${response.statusCode} - ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error creating order: $e');
       return null;
     }
   }
@@ -170,12 +155,9 @@ Thêm sản phẩm mới (cho admin)
       if (response.statusCode == 201) {
         return json.decode(response.body);
       } else {
-        print('Product creation failed: ${response.statusCode}');
-        print('Response: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error creating product: $e');
       return null;
     }
   }
@@ -192,12 +174,9 @@ Thêm sản phẩm mới (cho admin)
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('Product update failed: ${response.statusCode}');
-        print('Response: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error updating product: $e');
       return null;
     }
   }
@@ -217,12 +196,9 @@ Xóa sản phẩm - đảm bảo tham số id
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('Product deletion failed: ${response.statusCode}');
-        print('Response: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error deleting product: $e');
       return null;
     }
   }
@@ -233,12 +209,8 @@ Xóa sản phẩm - đảm bảo tham số id
 
   static Future<List<Map<String, dynamic>>> getAllOrders() async {
     try {
-      print('Fetching all orders from API...');
       final response =
           await http.get(Uri.parse('$baseUrl/orders')).timeout(requestTimeout);
-
-      print('Orders API response status: ${response.statusCode}');
-      print('Orders API response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -260,18 +232,14 @@ Xóa sản phẩm - đảm bảo tham số id
             return orderMap;
           }).toList();
 
-          print('Successfully parsed ${orders.length} orders');
           return orders;
         } else {
-          print('API returned success but no data or wrong format');
           return [];
         }
       } else {
-        print('API returned error status: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('Error fetching orders: $e');
       return [];
     }
   }
@@ -293,18 +261,12 @@ Cập nhật trạng thái đơn hàng
         }),
       );
 
-      print(
-          'Update order status response: ${response.statusCode} - ${response.body}');
-
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print(
-            'Error updating order status: ${response.statusCode} - ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error updating order status: $e');
       return null;
     }
   }
@@ -324,12 +286,9 @@ Thêm phương thức để lấy danh sách sản phẩm
         final data = json.decode(response.body);
         return List<Map<String, dynamic>>.from(data['data']);
       } else {
-        print('Failed to load products: ${response.statusCode}');
-        print('Response: ${response.body}');
         return [];
       }
     } catch (e) {
-      print('Error getting products: $e');
       return [];
     }
   }
@@ -340,11 +299,8 @@ Lấy tất cả người dùng (cho admin)
 
   static Future<List<Map<String, dynamic>>> getAllUsers() async {
     try {
-      print('Fetching all users from API...');
       final response =
           await http.get(Uri.parse('$baseUrl/users')).timeout(requestTimeout);
-
-      print('Users API response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -353,18 +309,14 @@ Lấy tất cả người dùng (cho admin)
           final users =
               rawUsers.map((user) => Map<String, dynamic>.from(user)).toList();
 
-          print('Successfully parsed ${users.length} users');
           return users;
         } else {
-          print('API returned success but no data or wrong format');
           return [];
         }
       } else {
-        print('API returned error status: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('Error fetching users: $e');
       return [];
     }
   }
@@ -392,12 +344,9 @@ Lấy tất cả người dùng (cho admin)
       if (response.statusCode == 201) {
         return json.decode(response.body);
       } else {
-        print('User creation failed: ${response.statusCode}');
-        print('Response: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error creating user: $e');
       return null;
     }
   }
@@ -431,12 +380,9 @@ Lấy tất cả người dùng (cho admin)
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('User update failed: ${response.statusCode}');
-        print('Response: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error updating user: $e');
       return null;
     }
   }
@@ -456,12 +402,9 @@ Lấy tất cả người dùng (cho admin)
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('User deletion failed: ${response.statusCode}');
-        print('Response: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error deleting user: $e');
       return null;
     }
   }
@@ -477,12 +420,10 @@ Lấy tất cả người dùng (cho admin)
         },
       );
 
-      print("Fetching products from: $uri");
       final response = await http.get(uri);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print("API response: $data");
 
         if (data['status'] == 'success') {
           final List<dynamic> productsJson = data['data'];
@@ -490,15 +431,12 @@ Lấy tất cả người dùng (cho admin)
               productsJson.map((json) => json as Map<String, dynamic>).toList();
           return products;
         } else {
-          print('API returned error: ${data['message']}');
           return [];
         }
       } else {
-        print('Failed to load products: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('Error in getFilteredProducts: $e');
       return [];
     }
   }
@@ -513,10 +451,6 @@ trên web hay không
   static Future<String?> uploadProfileImageWeb(
       String userId, Uint8List imageBytes, String fileName) async {
     try {
-      print("Starting web profile image upload for user ID: $userId");
-      print("Image file name: $fileName");
-      print("Image size: ${imageBytes.length} bytes");
-
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/upload-profile-image'),
@@ -532,29 +466,21 @@ trên web hay không
 
       request.fields['user_id'] = userId;
 
-      print('Sending web profile image upload request to: ${request.url}');
-
       var streamedResponse = await request.send().timeout(Duration(minutes: 2));
 
       var response = await http.Response.fromStream(streamedResponse);
-      print('Upload response status: ${response.statusCode}');
-      print('Upload response body: ${response.body}');
 
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
         if (jsonData['status'] == 'success') {
-          print('Upload successful: ${jsonData['image_url']}');
           return jsonData['image_url'];
         } else {
-          print('Upload failed: ${jsonData['message']}');
           return null;
         }
       } else {
-        print('Upload failed with status: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('Error uploading profile image on web: $e');
       return null;
     }
   }
@@ -567,13 +493,8 @@ Upload ảnh đại diện
       String userId, File imageFile) async {
     try {
       if (!await imageFile.exists()) {
-        print("Image file does not exist: ${imageFile.path}");
         return null;
       }
-
-      print("Starting profile image upload for user ID: $userId");
-      print("Image file path: ${imageFile.path}");
-      print("Image file size: ${await imageFile.length()} bytes");
 
       var request = http.MultipartRequest(
         'POST',
@@ -588,32 +509,21 @@ Upload ảnh đại diện
 
       request.fields['user_id'] = userId;
 
-      print('Sending profile image upload request to: ${request.url}');
-      print('With user ID: $userId');
-      print('Image file name: ${multipartFile.filename}');
-      print('Image content type: ${multipartFile.contentType}');
-
       var streamedResponse = await request.send().timeout(Duration(minutes: 2));
 
       var response = await http.Response.fromStream(streamedResponse);
-      print('Upload response status: ${response.statusCode}');
-      print('Upload response body: ${response.body}');
 
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
         if (jsonData['status'] == 'success') {
-          print('Upload successful: ${jsonData['image_url']}');
           return jsonData['image_url'];
         } else {
-          print('Upload failed: ${jsonData['message']}');
           return null;
         }
       } else {
-        print('Upload failed with status: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('Error uploading profile image: $e');
       return null;
     }
   }
@@ -654,12 +564,9 @@ Cập nhật thông tin cá nhân (cho người dùng)
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('Profile update failed: ${response.statusCode}');
-        print('Response: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Error updating profile: $e');
       return null;
     }
   }
@@ -683,15 +590,12 @@ Cập nhật thông tin cá nhân (cho người dùng)
               .map((json) => json as Map<String, dynamic>)
               .toList();
         } else {
-          print('API returned error: ${data['message']}');
           return [];
         }
       } else {
-        print('Failed to load notifications: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('Error getting notifications: $e');
       return [];
     }
   }
@@ -709,11 +613,9 @@ Cập nhật thông tin cá nhân (cho người dùng)
       if (response.statusCode == 200) {
         return true;
       } else {
-        print('Failed to mark notification as read: ${response.statusCode}');
         return false;
       }
     } catch (e) {
-      print('Error marking notification as read: $e');
       return false;
     }
   }
@@ -731,20 +633,16 @@ Lấy tin nhắn chat của người dùng
         headers: {'Cache-Control': 'no-cache, no-store, must-revalidate'},
       ).timeout(requestTimeout);
 
-      print(
-          'API response for messages: ${response.statusCode} - ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
           final messages = List<Map<String, dynamic>>.from(data['data']);
-          print('Retrieved ${messages.length} messages for user $userId');
+
           return messages;
         }
       }
       return [];
     } catch (e) {
-      print('Error getting chat messages: $e');
       return [];
     }
   }
@@ -755,13 +653,7 @@ Lấy tin nhắn chat của người dùng
   static Future<bool> sendChatMessage(
       String userId, String message, String sender) async {
     try {
-      print('SENDING MESSAGE:');
-      print('- userId: $userId');
-      print('- message: $message');
-      print('- sender: $sender');
-
       final url = '$baseUrl/chat/messages';
-      print('- url: $url');
 
       final response = await http
           .post(
@@ -772,15 +664,12 @@ Lấy tin nhắn chat của người dùng
           )
           .timeout(requestTimeout);
 
-      print('RESPONSE: ${response.statusCode} - ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['status'] == 'success';
       }
       return false;
     } catch (e) {
-      print('ERROR SENDING MESSAGE: $e');
       return false;
     }
   }
@@ -803,7 +692,6 @@ Lấy tin nhắn chat của người dùng
       }
       return [];
     } catch (e) {
-      print('Error getting chat users: $e');
       return [];
     }
   }
@@ -829,7 +717,6 @@ Lấy tin nhắn chat của người dùng
       }
       return false;
     } catch (e) {
-      print('Error marking messages as read: $e');
       return false;
     }
   }
@@ -851,7 +738,6 @@ Lấy số lượng tin nhắn chưa đọc
       }
       return 0;
     } catch (e) {
-      print('Error getting unread message count: $e');
       return 0;
     }
   }
@@ -864,17 +750,12 @@ hàng của người dùng
   static Future<List<Map<String, dynamic>>> getUserOrders(String userId) async {
     try {
       final url = '$baseUrl/orders?user_id=$userId';
-      print('Calling API: $url');
 
       final response = await http
           .get(
             Uri.parse(url),
           )
           .timeout(requestTimeout);
-
-      print('User orders response status: ${response.statusCode}');
-      print(
-          'User orders response body: ${response.body.substring(0, min(200, response.body.length))}...');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -883,13 +764,9 @@ hàng của người dùng
         }
         return [];
       } else {
-        print('Failed to load user orders: ${response.statusCode}');
-        print(
-            'Response body: ${response.body.substring(0, min(200, response.body.length))}...');
         return [];
       }
     } catch (e) {
-      print('Error getting user orders: $e');
       return [];
     }
   }
@@ -906,10 +783,6 @@ Cập nhật hàm để lấy các mục trong đơn hàng
         headers: {'Content-Type': 'application/json'},
       ).timeout(requestTimeout);
 
-      print('Order items response status: ${response.statusCode}');
-      print(
-          'Response body: ${response.body.substring(0, min(200, response.body.length))}...');
-
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
 
@@ -917,20 +790,17 @@ Cập nhật hàm để lấy các mục trong đơn hàng
           final List<dynamic> items = responseData['data'];
           return items.map((item) => item as Map<String, dynamic>).toList();
         } else if (responseData is Map && responseData.containsKey('status')) {
-          print('API returned success but no data');
           return [];
         } else if (responseData is List) {
           return responseData
               .map((item) => item as Map<String, dynamic>)
               .toList();
         } else {
-          print('Unexpected response format: ${responseData.runtimeType}');
           return [];
         }
       }
       return [];
     } catch (e) {
-      print('Error getting order items: $e');
       return [];
     }
   }
@@ -948,16 +818,11 @@ Phương thức lấy số dư ví
       ];
 
       for (var url in possibleUrls) {
-        print('Trying to get wallet balance with URL: $url');
-
         try {
           final response = await http.get(
             Uri.parse(url),
             headers: {'Content-Type': 'application/json'},
           );
-
-          print('Response status: ${response.statusCode}');
-          print('Response body: ${response.body}');
 
           if (response.statusCode == 200) {
             final data = json.decode(response.body);
@@ -970,14 +835,11 @@ Phương thức lấy số dư ví
 
             return data;
           }
-        } catch (e) {
-          print('Error with URL $url: $e');
-        }
+        } catch (e) {}
       }
 
       throw Exception('Failed to load wallet balance');
     } catch (e) {
-      print('Error getting wallet balance: $e');
       throw Exception('Network error: $e');
     }
   }
@@ -989,15 +851,11 @@ Phương thức lấy số dư ví
       String userId) async {
     try {
       final url = '$baseUrl/wallet/transactions/$userId';
-      print('Getting wallet transactions with URL: $url');
 
       final response = await http.get(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
       );
-
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1014,11 +872,9 @@ Phương thức lấy số dư ví
 
         return transactions;
       } else {
-        print('Error response: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to load wallet transactions');
       }
     } catch (e) {
-      print('Error getting wallet transactions: $e');
       throw Exception('Network error: $e');
     }
   }
@@ -1030,7 +886,6 @@ Phương thức tạo yêu cầu nạp tiền
       String userId, double amount, String method) async {
     try {
       final url = '$baseUrl/wallet/topup';
-      print('Creating top-up request with URL: $url');
 
       final response = await http.post(
         Uri.parse(url),
@@ -1042,17 +897,12 @@ Phương thức tạo yêu cầu nạp tiền
         }),
       );
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
       } else {
-        print('Error response: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to create top-up request');
       }
     } catch (e) {
-      print('Error creating top-up request: $e');
       throw Exception('Network error: $e');
     }
   }
@@ -1066,15 +916,11 @@ Phương thức lấy danh sách yêu cầu
       String filter) async {
     try {
       final url = '$baseUrl/admin/wallet/topups?filter=$filter';
-      print('Getting top-up requests with URL: $url');
 
       final response = await http.get(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
       );
-
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1090,11 +936,9 @@ Phương thức lấy danh sách yêu cầu
 
         return topups;
       } else {
-        print('Error response: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to load top-up requests');
       }
     } catch (e) {
-      print('Error getting top-up requests: $e');
       throw Exception('Network error: $e');
     }
   }
@@ -1108,24 +952,18 @@ Phương thức xác nhận yêu cầu nạp\
       String requestId) async {
     try {
       final url = '$baseUrl/admin/wallet/topups/$requestId/approve';
-      print('Approving top-up request with URL: $url');
 
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('Error response: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to approve top-up request');
       }
     } catch (e) {
-      print('Error approving top-up request: $e');
       throw Exception('Network error: $e');
     }
   }
@@ -1137,24 +975,18 @@ Từ chối yêu cầu nạp tiền (cho admin)
       String requestId) async {
     try {
       final url = '$baseUrl/admin/wallet/topups/$requestId/reject';
-      print('Rejecting top-up request with URL: $url');
 
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('Error response: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to reject top-up request');
       }
     } catch (e) {
-      print('Error rejecting top-up request: $e');
       throw Exception('Network error: $e');
     }
   }

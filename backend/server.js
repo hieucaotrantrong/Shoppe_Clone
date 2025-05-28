@@ -203,7 +203,7 @@ app.post('/api/users/login', async (req, res) => {
 
     res.json({ status: 'success', message: 'Login successful', data: userData });
   } catch (error) {
-    console.error('Error during login:', error);
+
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
@@ -248,11 +248,13 @@ app.post('/api/users/register', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error during registration:', error);
+
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
-
+/*---------------------------------
+- Quản lí đơn hàng
+-----------------------------------*/
 /*---------------------------------
 - Create order by (user)
 -----------------------------------*/
@@ -261,7 +263,6 @@ app.post('/api/orders', async (req, res) => {
   try {
     const { user_id, total_amount, items, payment_method, shipping_address, phone } = req.body;
 
-    console.log('Received order request:', JSON.stringify({ user_id, total_amount, items, payment_method, shipping_address, phone }, null, 2));
 
     if (!user_id || !total_amount || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ status: 'error', message: 'Invalid order data' });
@@ -358,7 +359,7 @@ app.post('/api/orders', async (req, res) => {
       connection.release();
     }
   } catch (error) {
-    console.error('Error creating order:', error);
+
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
@@ -489,7 +490,7 @@ app.get('/api/orders', async (req, res) => {
       data: ordersWithItems
     });
   } catch (error) {
-    console.error('Error fetching orders:', error);
+
     res.status(500).json({
       status: 'error',
       message: error.message
@@ -504,7 +505,7 @@ app.post('/api/orders/:id/status', async (req, res) => {
     const orderId = req.params.id;
     const { status, reason } = req.body;
 
-    console.log(`Updating order ${orderId} to status: ${status}`);
+
 
 
     const [orderRows] = await pool.query(
@@ -558,7 +559,7 @@ app.post('/api/orders/:id/status', async (req, res) => {
           const userId = order.user_id;
           const totalAmount = parseFloat(order.total_amount);
 
-          console.log(`Refunding ${totalAmount} to user ${userId}'s wallet`);
+
           /*-----------------------------------
           Cập nhật số dư ví của người dùng
           -------------------------------------*/
@@ -578,9 +579,9 @@ app.post('/api/orders/:id/status', async (req, res) => {
             [userId, totalAmount, `Hoàn tiền đơn hàng ${productText}`, orderId]
           );
 
-          console.log(`Refund completed for order ${orderId}`);
+
         } else {
-          console.log(`Order ${orderId} used payment method ${order.payment_method}, no wallet refund needed`);
+
         }
       }
       /*--------------------------------------------
@@ -668,7 +669,7 @@ app.post('/api/orders/:id/status', async (req, res) => {
       connection.release();
     }
   } catch (error) {
-    console.error('Error updating order status:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -681,7 +682,7 @@ app.get('/api/products', async (req, res) => {
   try {
     const { category, search } = req.query;
 
-    console.log(`Fetching products with category: ${category}, search: ${search}`);
+
 
     let query = 'SELECT * FROM products WHERE 1=1';
     const params = [];
@@ -698,20 +699,19 @@ app.get('/api/products', async (req, res) => {
     if (search && search.trim() !== '') {
       query += ' AND name LIKE ?';
       params.push(`%${search.trim()}%`);
-      console.log(`Searching for products with name like: %${search.trim()}%`);
+
     }
 
     query += ' ORDER BY id DESC';
 
-    console.log('Executing query:', query, 'with params:', params);
+
 
     const [rows] = await pool.query(query, params);
 
-    console.log(`Found ${rows.length} products`);
 
     res.json({ status: 'success', data: rows });
   } catch (error) {
-    console.error('Error fetching products:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -734,7 +734,7 @@ app.get('/api/products/:id', async (req, res) => {
 
     res.json({ status: 'success', data: rows[0] });
   } catch (error) {
-    console.error('Error fetching product:', error);
+
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
@@ -767,7 +767,7 @@ app.post('/api/products', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error creating product:', error);
+
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
@@ -805,7 +805,7 @@ app.put('/api/products/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error updating product:', error);
+
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
@@ -831,7 +831,7 @@ app.delete('/api/products/:id', async (req, res) => {
       data: { id: productId }
     });
   } catch (error) {
-    console.error('Error deleting product:', error);
+
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
@@ -840,17 +840,17 @@ app.delete('/api/products/:id', async (req, res) => {
 -----------------------------------*/
 app.get('/api/users', async (req, res) => {
   try {
-    console.log('Fetching all users...');
+
 
     const [rows] = await pool.query(
       'SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC'
     );
 
-    console.log(`Found ${rows.length} users`);
+
 
     res.json({ status: 'success', data: rows });
   } catch (error) {
-    console.error('Error fetching users:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -892,7 +892,7 @@ app.post('/api/users', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error creating user:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -966,7 +966,7 @@ app.put('/api/users/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error updating user:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -1008,7 +1008,7 @@ app.delete('/api/users/:id', async (req, res) => {
       message: 'User deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting user:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -1020,7 +1020,7 @@ app.get('/users/:id/orders', async (req, res) => {
   try {
     const userId = req.params.id;
 
-    console.log(`Getting orders for user ${userId}`);
+
 
 
     const [orders] = await pool.query(
@@ -1030,14 +1030,14 @@ app.get('/users/:id/orders', async (req, res) => {
       [userId]
     );
 
-    console.log(`Found ${orders.length} orders for user ${userId}`);
+
 
     res.json({
       status: 'success',
       data: orders
     });
   } catch (error) {
-    console.error('Error getting user orders:', error);
+
     res.status(500).json({
       status: 'error',
       message: error.message
@@ -1051,7 +1051,7 @@ app.get('/users/:id/orders', async (req, res) => {
 app.get('/orders/:id/items', async (req, res) => {
   try {
     const orderId = req.params.id;
-    console.log(`Fetching items for order #${orderId}`);
+
 
     const [items] = await pool.query(
       `SELECT oi.*, p.image_path, p.name as product_name, p.description, p.price as product_price
@@ -1061,7 +1061,7 @@ app.get('/orders/:id/items', async (req, res) => {
       [orderId]
     );
 
-    console.log(`Found ${items.length} items for order #${orderId}`);
+
 
 
     const processedItems = items.map(item => {
@@ -1083,7 +1083,7 @@ app.get('/orders/:id/items', async (req, res) => {
 
     res.json(processedItems);
   } catch (error) {
-    console.error('Error getting order items:', error);
+
     res.status(500).json({
       status: 'error',
       message: error.message
@@ -1164,7 +1164,7 @@ app.put('/api/users/profile/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error updating profile:', error);
+
     res.status(500).json({
       status: 'error',
       message: error.message
@@ -1257,7 +1257,7 @@ app.post('/api/upload-profile-image', upload.single('image'), async (req, res) =
       image_url: fullUrl
     });
   } catch (error) {
-    console.error('Error uploading profile image:', error);
+
     res.status(500).json({
       status: 'error',
       message: error.message
@@ -1287,14 +1287,14 @@ app.get('/api/users/:userId/notifications', async (req, res) => {
       [userId]
     );
 
-    console.log(`Found ${notifications.length} notifications for user ${userId}`);
+
 
     res.json({
       status: 'success',
       data: notifications
     });
   } catch (error) {
-    console.error('Error fetching user notifications:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -1316,7 +1316,7 @@ app.put('/api/notifications/:id/read', async (req, res) => {
       message: 'Notification marked as read'
     });
   } catch (error) {
-    console.error('Error marking notification as read:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -1339,7 +1339,7 @@ app.put('/api/users/:userId/notifications/read-all', async (req, res) => {
       message: 'All notifications marked as read'
     });
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -1354,7 +1354,7 @@ app.get('/api/chat/messages/:userId', async (req, res) => {
     const userId = req.params.userId;
 
 
-    console.log(`Getting messages for user ${userId}`);
+
 
     const [messages] = await pool.query(
       `SELECT * FROM chat_messages 
@@ -1363,7 +1363,7 @@ app.get('/api/chat/messages/:userId', async (req, res) => {
       [userId]
     );
 
-    console.log(`Retrieved ${messages.length} messages for user ${userId}`);
+
 
 
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -1375,7 +1375,7 @@ app.get('/api/chat/messages/:userId', async (req, res) => {
       data: messages
     });
   } catch (error) {
-    console.error('Error fetching chat messages:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -1384,7 +1384,7 @@ app.get('/api/chat/messages/:userId', async (req, res) => {
     -----------------------------------*/
 
 app.post('/api/chat/messages', async (req, res) => {
-  console.log('Received chat message request:', req.body);
+
   try {
     const { userId, message, sender } = req.body;
 
@@ -1410,7 +1410,7 @@ app.post('/api/chat/messages', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error sending chat message:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -1440,7 +1440,7 @@ app.get('/api/chat/users', async (req, res) => {
       data: users
     });
   } catch (error) {
-    console.error('Error fetching chat users:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -1452,7 +1452,7 @@ app.post('/api/chat/mark-read', async (req, res) => {
   try {
     const { userId, sender } = req.body;
 
-    console.log(`Marking messages as read for user ${userId}, sender ${sender}`);
+
 
     await pool.query(
       'UPDATE chat_messages SET is_read = TRUE WHERE user_id = ? AND sender = ?',
@@ -1469,7 +1469,7 @@ app.post('/api/chat/mark-read', async (req, res) => {
       message: 'Messages marked as read'
     });
   } catch (error) {
-    console.error('Error marking messages as read:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -1512,7 +1512,7 @@ app.get('/api/orders/:id/details', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error getting order details:', error);
+
     res.status(500).json({
       status: 'error',
       message: error.message
@@ -1554,7 +1554,7 @@ app.get('/api/orders/:id/items', async (req, res) => {
       data: itemsWithFullImagePath
     });
   } catch (error) {
-    console.error('Error getting order items:', error);
+
     res.status(500).json({
       status: 'error',
       message: error.message
@@ -1568,7 +1568,7 @@ API lấy lịch sử giao dịch
 app.get('/api/wallet/transactions/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
-    console.log(`Getting wallet transactions for user ${userId}`);
+
 
 
     const [transactions] = await pool.query(
@@ -1586,10 +1586,10 @@ app.get('/api/wallet/transactions/:userId', async (req, res) => {
       };
     });
 
-    console.log(`Found ${transactions.length} transactions for user ${userId}`);
+
     return res.json({ transactions: formattedTransactions });
   } catch (error) {
-    console.error('Error getting wallet transactions:', error);
+
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1599,11 +1599,11 @@ app.get('/api/wallet/transactions/:userId', async (req, res) => {
 
 app.post('/api/wallet/topup', async (req, res) => {
   try {
-    console.log('Received top-up request:', req.body);
+
     const { user_id, amount, payment_method } = req.body;
 
     if (!user_id || !amount || !payment_method) {
-      console.log('Missing required fields:', { user_id, amount, payment_method });
+
       return res.status(400).json({ status: 'error', message: 'Missing required fields' });
     }
 
@@ -1615,7 +1615,7 @@ app.post('/api/wallet/topup', async (req, res) => {
       [user_id, amount, payment_method]
     );
 
-    console.log(`Created top-up request with ID ${result.insertId}`);
+
 
 
     await pool.query(
@@ -1631,7 +1631,7 @@ app.post('/api/wallet/topup', async (req, res) => {
       request_id: result.insertId
     });
   } catch (error) {
-    console.error('Error creating top-up request:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -1643,7 +1643,7 @@ app.post('/api/wallet/topup', async (req, res) => {
 app.get('/api/admin/wallet/topups', async (req, res) => {
   try {
     const filter = req.query.filter || 'all';
-    console.log(`Getting top-up requests with filter: ${filter}`);
+
 
     let query = `
       SELECT t.*, u.name as user_name 
@@ -1659,7 +1659,7 @@ app.get('/api/admin/wallet/topups', async (req, res) => {
     query += ` ORDER BY t.created_at DESC`;
 
     const [topups] = await pool.query(query);
-    console.log(`Found ${topups.length} top-up requests with filter: ${filter}`);
+
 
 
     const formattedTopups = topups.map(topup => {
@@ -1671,7 +1671,7 @@ app.get('/api/admin/wallet/topups', async (req, res) => {
 
     return res.json({ topups: formattedTopups });
   } catch (error) {
-    console.error('Error getting top-up requests:', error);
+
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1682,7 +1682,7 @@ API xác nhận yêu cầu nạp tiền (cho admin)
 app.post('/api/admin/wallet/topups/:id/approve', async (req, res) => {
   try {
     const topupId = req.params.id;
-    console.log(`Approving top-up request with ID: ${topupId}`);
+
 
 
     const [topupRows] = await pool.query(
@@ -1727,7 +1727,7 @@ app.post('/api/admin/wallet/topups/:id/approve', async (req, res) => {
       );
 
       await connection.commit();
-      console.log(`Top-up request ${topupId} approved successfully`);
+
 
       return res.json({
         status: 'success',
@@ -1740,7 +1740,7 @@ app.post('/api/admin/wallet/topups/:id/approve', async (req, res) => {
       connection.release();
     }
   } catch (error) {
-    console.error('Error approving top-up request:', error);
+
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1751,7 +1751,7 @@ API từ chối yêu cầu nạp tiền (cho admin)
 app.post('/api/admin/wallet/topups/:id/reject', async (req, res) => {
   try {
     const topupId = req.params.id;
-    console.log(`Rejecting top-up request with ID: ${topupId}`);
+
 
     const [topupRows] = await pool.query(
       'SELECT * FROM wallet_topups WHERE id = ?',
@@ -1792,7 +1792,7 @@ app.post('/api/admin/wallet/topups/:id/reject', async (req, res) => {
       );
 
       await connection.commit();
-      console.log(`Top-up request ${topupId} rejected successfully`);
+
 
       return res.json({
         status: 'success',
@@ -1805,7 +1805,7 @@ app.post('/api/admin/wallet/topups/:id/reject', async (req, res) => {
       connection.release();
     }
   } catch (error) {
-    console.error('Error rejecting top-up request:', error);
+
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1816,7 +1816,7 @@ API lấy số dư ví của người dùng
 app.get('/api/wallet/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
-    console.log(`Getting wallet balance for user ${userId}`);
+
 
 
     const [walletRows] = await pool.query(
@@ -1826,7 +1826,7 @@ app.get('/api/wallet/:userId', async (req, res) => {
 
 
     if (walletRows.length === 0) {
-      console.log(`Creating new wallet for user ${userId}`);
+
       await pool.query(
         'INSERT INTO wallets (user_id, balance) VALUES (?, 0)',
         [userId]
@@ -1835,11 +1835,11 @@ app.get('/api/wallet/:userId', async (req, res) => {
       return res.json({ balance: 0 });
     }
 
-    console.log(`Wallet found for user ${userId}, balance: ${walletRows[0].balance}`);
+
 
     return res.json({ balance: parseFloat(walletRows[0].balance) });
   } catch (error) {
-    console.error('Error getting wallet balance:', error);
+
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1864,7 +1864,7 @@ app.get('/api/products', async (req, res) => {
       data: formattedProducts
     });
   } catch (error) {
-    console.error('Error getting products:', error);
+
     res.status(500).json({ status: 'error', message: error.message });
   }
 });

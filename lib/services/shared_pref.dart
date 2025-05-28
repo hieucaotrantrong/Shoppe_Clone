@@ -16,12 +16,6 @@ class SharedPreferenceHelper {
     await prefs.setString(userEmailKey, userEmail);
     await prefs.setString(userRoleKey, role);
 
-    print('Saved user data to SharedPreferences:');
-    print('- userId: $userId');
-    print('- userName: $userName');
-    print('- userEmail: $userEmail');
-    print('- userRole: $role');
-
     return true;
   }
 
@@ -29,7 +23,7 @@ class SharedPreferenceHelper {
   Future<String?> getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userId = prefs.getString(userIdKey);
-    print('Retrieved userId from SharedPreferences: $userId');
+
     return userId;
   }
 
